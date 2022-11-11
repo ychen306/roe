@@ -38,6 +38,12 @@ public:
   void addNode(ENode *node);
   // Record that fact that `user`'s `i`th operand is `this` EClass
   void addUse(ENode *user, unsigned i);
+  // Aborb `other` into `this` class and empther `other`
+  void absorb(EClass *other);
+  void swap(EClass *other) {
+    uses.swap(other->uses);
+    opcodeToNodesMap.swap(other->opcodeToNodesMap);
+  }
 };
 
 struct NodeKey {
@@ -70,11 +76,17 @@ class EGraph {
   llvm::DenseMap<NodeKey, std::unique_ptr<ENode>, NodeHashInfo> nodes;
   llvm::EquivalenceClasses<EClass *> ec;
   std::vector<std::unique_ptr<EClass>> classes;
+  // List of e-classs that require repair
+  std::vector<EClass *> repairList;
 
 public:
   EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands);
   EClass *getLeader(EClass *c) const { return ec.getLeaderValue(c); }
   ENode *findNode(Opcode opcode, llvm::ArrayRef<EClass *> operands);
+  bool isEquivalent(EClass *c1, EClass *c2) const {
+    return ec.isEquivalent(c1, c2);
+  }
+  EClass *merge(EClass *c1, EClass *c2);
 };
 
 #endif // EGRAPH_H
