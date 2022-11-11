@@ -10,7 +10,6 @@
 using Opcode = unsigned;
 
 class EClass;
-
 class ENode {
   friend class ENodeHashInfo;
   Opcode opcode;
@@ -27,7 +26,19 @@ public:
   EClass *getClass() const { return cls; }
 };
 
-class EClass {};
+class EGraph;
+class EClass {
+  // Mapping <user opcode, operand id> -> <sorted array of of user>
+  llvm::DenseMap<std::pair<Opcode, unsigned>, std::vector<ENode *>> uses;
+  // Partitioning the nodes by opcode
+  llvm::DenseMap<Opcode, std::vector<ENode *>> opcodeToNodesMap;
+
+public:
+  EClass() = default;
+  void addNode(ENode *node);
+  // Record that fact that `user`'s `i`th operand is `this` EClass
+  void addUse(ENode *user, unsigned i);
+};
 
 struct NodeKey {
   Opcode opcode;
@@ -61,25 +72,9 @@ class EGraph {
   std::vector<std::unique_ptr<EClass>> classes;
 
 public:
-  EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
-    ENode *node = getNode(opcode, operands);
-    if (auto *c = node->getClass())
-      return c;
-    EClass *c = classes.emplace_back().get();
-    node->setClass(c);
-    // FIXME: record use of the operands
-    return c;
-  }
-
+  EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands);
   EClass *getLeader(EClass *c) const { return ec.getLeaderValue(c); }
-
-  ENode *getNode(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
-    NodeKey key;
-    key.opcode = opcode;
-    for (EClass *operand : operands)
-      key.operands.push_back(getLeader(operand));
-    return nullptr;
-  }
+  ENode *findNode(Opcode opcode, llvm::ArrayRef<EClass *> operands);
 };
 
 #endif // EGRAPH_H
