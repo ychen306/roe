@@ -47,6 +47,24 @@ TEST(MakeTest, rebuild2) {
   ASSERT_EQ(g.getLeader(fxy), g.getLeader(fab));
 }
 
+TEST(MakeTest, rebuild_nested) {
+  EGraph g;
+  auto *x = g.make(0);
+  auto *y = g.make(1);
+  auto *a = g.make(2);
+  auto *b = g.make(3);
+
+  auto *fxy = g.make(4, {x,y});
+  auto *fab = g.make(4, {a,b});
+  auto h0 = g.make(5, {fxy, x});
+  auto h1 = g.make(5, {fab, a});
+  ASSERT_NE(g.getLeader(h0), g.getLeader(h1));
+  g.merge(x, a);
+  g.merge(y, b);
+  g.rebuild();
+  ASSERT_EQ(g.getLeader(h0), g.getLeader(h1));
+}
+
 TEST(PatternTest, make) {
   auto x = Pattern::var();
   auto y = Pattern::var();
