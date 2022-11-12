@@ -30,10 +30,10 @@ public:
 class EGraph;
 class EClass {
   // Mapping <user opcode, operand id> -> <sorted array of of user>
-  llvm::DenseMap<std::pair<Opcode, unsigned>, std::set<ENode *>> uses;
+  llvm::DenseMap<std::pair<Opcode, unsigned>, llvm::DenseSet<ENode *>> uses;
   llvm::DenseSet<ENode *> users;
   // Partitioning the nodes by opcode
-  llvm::DenseMap<Opcode, std::set<ENode *>> opcodeToNodesMap;
+  llvm::DenseMap<Opcode, llvm::DenseSet<ENode *>> opcodeToNodesMap;
 
 public:
   EClass() = default;

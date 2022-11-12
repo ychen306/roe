@@ -4,8 +4,8 @@ namespace {
 
 // Destructively merge `src` into `dst`.
 template <typename KeyType, typename ValueType>
-void absorbMap(llvm::DenseMap<KeyType, std::set<ValueType>> &dst,
-               llvm::DenseMap<KeyType, std::set<ValueType>> &src) {
+void absorbMap(llvm::DenseMap<KeyType, llvm::DenseSet<ValueType>> &dst,
+               llvm::DenseMap<KeyType, llvm::DenseSet<ValueType>> &src) {
   for (auto kv : src) {
     auto key = kv.first;
 
