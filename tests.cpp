@@ -48,6 +48,8 @@ TEST(MakeTest, rebuild2) {
   g.merge(y, b);
   g.rebuild();
   ASSERT_EQ(g.getLeader(fxy), g.getLeader(fab));
+  auto *usersOfX = g.getLeader(x)->getUsersByUses(4, 0);
+  ASSERT_EQ(usersOfX->size(), 1);
 }
 
 TEST(MakeTest, rebuild_nested) {
