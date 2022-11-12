@@ -126,21 +126,24 @@ void EClass::repair(EGraph *g) {
     if (nodes.size() <= 1)
       continue;
 
+
     ENode *node0 = nodes.front();
     assert(node0->getClass());
     users.erase(node0);
 
+    auto *c = node0->getClass();
     ENode *user = g->findNode(key);
-    user->setClass(node0->getClass());
-    users.insert(user);
 
     oldToNewUserMap.try_emplace(node0, user);
     for (auto *node : llvm::drop_begin(nodes)) {
       assert(node->getClass());
-      g->merge(node0->getClass(), node->getClass());
+      g->merge(c, node->getClass());
       users.erase(node);
       oldToNewUserMap.try_emplace(node, user);
     }
+
+    user->setClass(node0->getClass());
+    users.insert(user);
   }
 
   // Fix the use index by replacing the duplicated user
