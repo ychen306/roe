@@ -91,7 +91,7 @@ class EGraph {
 
 public:
   NodeKey canonicalize(Opcode opcode, llvm::ArrayRef<EClass *> operands);
-  EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands);
+  EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands=llvm::None);
   EClass *getLeader(EClass *c) const { return ec.getLeaderValue(c); }
   ENode *findNode(Opcode opcode, llvm::ArrayRef<EClass *> operands);
   ENode *findNode(NodeKey);
