@@ -39,11 +39,17 @@ void EClass::absorb(EClass *other) {
   users.insert(other->users.begin(), other->users.end());
 }
 
+EClass *EGraph::newClass() {
+  auto *c = classes.emplace_back(new EClass()).get();
+  ec.insert(c);
+  return c;
+}
+
 EClass *EGraph::make(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
   ENode *node = findNode(opcode, operands);
   if (auto *c = node->getClass())
     return c;
-  EClass *c = classes.emplace_back(new EClass()).get();
+  EClass *c = newClass();
   node->setClass(c);
   c->addNode(node);
   return c;

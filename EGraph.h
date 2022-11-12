@@ -88,6 +88,7 @@ class EGraph {
   std::vector<EClass *> repairList;
 
   void repair(EClass *);
+  EClass *newClass();
 
 public:
   NodeKey canonicalize(Opcode opcode, llvm::ArrayRef<EClass *> operands);
