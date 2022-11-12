@@ -27,6 +27,9 @@ TEST(MakeTest, rebuild) {
   ASSERT_NE(g.getLeader(fx), g.getLeader(fy));
   g.rebuild();
   ASSERT_EQ(g.getLeader(fx), g.getLeader(fy));
+  auto *usersOfX = g.getLeader(x)->getUsersByUses(2, 0);
+  ASSERT_NE(usersOfX, nullptr);
+  ASSERT_EQ(usersOfX->size(), 1);
 }
 
 TEST(MakeTest, rebuild2) {

@@ -51,6 +51,7 @@ public:
   llvm::iterator_range<decltype(users)::iterator> getUsers() {
     return llvm::make_range(users.begin(), users.end());
   }
+  llvm::DenseSet<ENode *> *getUsersByUses(Opcode opcode, unsigned operandId);
   void repair(EGraph *);
 };
 
@@ -92,7 +93,7 @@ class EGraph {
 
 public:
   NodeKey canonicalize(Opcode opcode, llvm::ArrayRef<EClass *> operands);
-  EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands=llvm::None);
+  EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands = llvm::None);
   EClass *getLeader(EClass *c) const { return ec.getLeaderValue(c); }
   ENode *findNode(Opcode opcode, llvm::ArrayRef<EClass *> operands);
   ENode *findNode(NodeKey);

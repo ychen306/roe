@@ -43,6 +43,14 @@ void EClass::absorb(EClass *other) {
   users.insert(other->users.begin(), other->users.end());
 }
 
+llvm::DenseSet<ENode *> *EClass::getUsersByUses(Opcode opcode,
+                                                unsigned operandId) {
+  auto it = uses.find({opcode, operandId});
+  if (it != uses.end())
+    return &it->second;
+  return nullptr;
+}
+
 EClass *EGraph::newClass() {
   auto *c = classes.emplace_back(new EClass()).get();
   ec.insert(c);
