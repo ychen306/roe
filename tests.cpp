@@ -5,7 +5,25 @@ TEST(MakeTest, simple) {
   EGraph g;
   auto *x = g.make(0);
   auto *y = g.make(1);
-  ASSERT_FALSE(g.isEquivalent(x, y));
+  ASSERT_NE(g.getLeader(x), g.getLeader(y));
   g.merge(x, y);
-  ASSERT_TRUE(g.isEquivalent(x, y));
+  ASSERT_EQ(g.getLeader(x), g.getLeader(y));
+}
+
+TEST(MakeTest, hashcons) {
+  EGraph g;
+  ASSERT_EQ(g.make(0), g.make(0));
+}
+
+TEST(MakeTest, rebuild) {
+  EGraph g;
+  auto *x = g.make(0);
+  auto *y = g.make(1);
+  auto *fx = g.make(2, {x});
+  auto *fy = g.make(2, {y});
+  g.merge(x, y);
+  ASSERT_EQ(g.getLeader(x), g.getLeader(y));
+  ASSERT_NE(g.getLeader(fx), g.getLeader(fy));
+  g.rebuild();
+  ASSERT_EQ(g.getLeader(fx), g.getLeader(fy));
 }
