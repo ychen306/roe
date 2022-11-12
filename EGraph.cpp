@@ -126,7 +126,6 @@ void EClass::repair(EGraph *g) {
     if (nodes.size() <= 1)
       continue;
 
-
     ENode *node0 = nodes.front();
     assert(node0->getClass());
     users.erase(node0);
