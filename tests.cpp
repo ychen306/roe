@@ -33,4 +33,7 @@ TEST(PatternTest, make) {
   auto x = Pattern::var();
   auto y = Pattern::var();
   auto add = Pattern::make(0, {x, y});
+  ASSERT_TRUE(x->isVar());
+  ASSERT_TRUE(y->isVar());
+  ASSERT_FALSE(add->isVar());
 }

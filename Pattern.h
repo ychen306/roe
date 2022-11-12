@@ -21,7 +21,9 @@ public:
     return std::shared_ptr<Pattern>(new Pattern(opcode, operands));
   }
 
-  static std::shared_ptr<Pattern> var() { return std::shared_ptr<Pattern>(); }
+  static std::shared_ptr<Pattern> var() {
+    return std::shared_ptr<Pattern>(new Pattern());
+  }
 
   bool isVar() const { return isLeaf; }
 
