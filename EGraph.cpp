@@ -1,4 +1,7 @@
 #include "EGraph.h"
+#include "llvm/Support/raw_ostream.h"
+
+using llvm::errs;
 
 namespace {
 
@@ -52,6 +55,8 @@ EClass *EGraph::make(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
   EClass *c = newClass();
   node->setClass(c);
   c->addNode(node);
+  for (auto item : llvm::enumerate(node->getOperands()))
+    item.value()->addUse(node, item.index());
   return c;
 }
 
@@ -97,7 +102,7 @@ void EGraph::rebuild() {
     std::set<EClass *> todo;
     for (auto *c : repairList)
       todo.insert(getLeader(c));
-    repairList.empty();
+    repairList.clear();
     for (auto *c : todo)
       c->repair(this);
   }
