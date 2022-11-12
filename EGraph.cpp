@@ -2,41 +2,41 @@
 
 namespace {
 
+// Destructively merge `src` into `dst`.
 template <typename KeyType, typename ValueType>
-void mergeMap(llvm::DenseMap<KeyType, std::vector<ValueType>> &dst,
-              llvm::DenseMap<KeyType, std::vector<ValueType>> &src) {
+void absorbMap(llvm::DenseMap<KeyType, std::set<ValueType>> &dst,
+               llvm::DenseMap<KeyType, std::set<ValueType>> &src) {
   for (auto kv : src) {
     auto key = kv.first;
 
     auto [it, inserted] = dst.try_emplace(key);
-    // If this key is not seen in this class, just steal the values from src
     if (inserted) {
+      // If this key is not seen in this class, just steal the values from src
       it->second = std::move(kv.second);
-      continue;
+    } else {
+      // Merge them otherwise
+      it->second.insert(kv.second.begin(), kv.second.end());
     }
-
-    // Merge the sorted values
-    std::vector<ValueType> merged;
-    merged.reserve(it->second.size() + kv.second.size());
-    std::merge(it->second.begin(), it->second.end(), kv.second.begin(),
-               kv.second.end(), std::back_inserter(merged));
-    it->second = std::move(merged);
   }
+
+  src.clear();
 }
 
 } // namespace
 
 void EClass::addNode(ENode *node) {
-  opcodeToNodesMap[node->getOpcode()].push_back(node);
+  opcodeToNodesMap[node->getOpcode()].insert(node);
 }
 
 void EClass::addUse(ENode *user, unsigned i) {
-  uses[std::make_pair(user->getOpcode(), i)].push_back(user);
+  uses[std::make_pair(user->getOpcode(), i)].insert(user);
+  users.insert(user);
 }
 
 void EClass::absorb(EClass *other) {
-  mergeMap(opcodeToNodesMap, other->opcodeToNodesMap);
-  mergeMap(uses, other->uses);
+  absorbMap(opcodeToNodesMap, other->opcodeToNodesMap);
+  absorbMap(uses, other->uses);
+  users.insert(other->users.begin(), other->users.end());
 }
 
 EClass *EGraph::make(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
@@ -49,17 +49,25 @@ EClass *EGraph::make(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
   return c;
 }
 
-ENode *EGraph::findNode(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
+NodeKey EGraph::canonicalize(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
   NodeKey key;
   key.opcode = opcode;
-  for (EClass *operand : operands)
-    key.operands.push_back(getLeader(operand));
+  for (EClass *c : operands)
+    key.operands.push_back(getLeader(c));
+  return key;
+}
+
+ENode *EGraph::findNode(NodeKey key) {
   auto [it, inserted] = nodes.try_emplace(key);
   if (inserted) {
     assert(!it->second);
-    it->second.reset(new ENode(opcode, operands));
+    it->second.reset(new ENode(key.opcode, key.operands));
   }
   return it->second.get();
+}
+
+ENode *EGraph::findNode(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
+  return findNode(canonicalize(opcode, operands));
 }
 
 EClass *EGraph::merge(EClass *c1, EClass *c2) {
@@ -71,10 +79,64 @@ EClass *EGraph::merge(EClass *c1, EClass *c2) {
   // Merge everything into c1
   c1->absorb(c2);
   auto *c = *ec.unionSets(c1, c2);
-  // If union-find set c2 as leader swap the content
   if (c != c1)
-    c->swap(c1);
+    *c = std::move(*c1);
   // See if we can merge some of `c`'s users later
   repairList.push_back(c);
   return c;
+}
+
+void EGraph::rebuild() {
+  while (!repairList.empty()) {
+    std::set<EClass *> todo;
+    for (auto *c : repairList)
+      todo.insert(getLeader(c));
+    repairList.empty();
+    for (auto *c : todo)
+      c->repair(this);
+  }
+}
+
+void EClass::repair(EGraph *g) {
+  // Group users together by their canonical representation
+  llvm::DenseMap<NodeKey, std::vector<ENode *>, NodeHashInfo> uniqueUsers;
+  for (ENode *user : users) {
+    auto key = g->canonicalize(user->getOpcode(), user->getOperands());
+    uniqueUsers[key].push_back(user);
+  }
+
+  // Remember the nodes that we are replacing
+  llvm::DenseMap<ENode *, ENode *> oldToNewUserMap;
+  // Merge and remove the duplicated users
+  for (auto kv : uniqueUsers) {
+    NodeKey key = kv.first;
+    auto &nodes = kv.second;
+    if (nodes.size() <= 1)
+      continue;
+
+    ENode *node0 = nodes.front();
+    assert(node0->getClass());
+    users.erase(node0);
+
+    ENode *user = g->findNode(key);
+    user->setClass(node0->getClass());
+    users.insert(user);
+
+    oldToNewUserMap.try_emplace(node0, user);
+    for (auto *node : llvm::drop_begin(nodes)) {
+      assert(node->getClass());
+      g->merge(node0->getClass(), node->getClass());
+      users.erase(node);
+      oldToNewUserMap.try_emplace(node, user);
+    }
+  }
+
+  // Fix the use index by replacing the duplicated user
+  // with their new canonical user
+  for (auto &nodes : llvm::make_second_range(uses)) {
+    for (auto &kv : oldToNewUserMap) {
+      if (nodes.erase(kv.first))
+        nodes.insert(kv.second);
+    }
+  }
 }

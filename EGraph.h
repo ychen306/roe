@@ -3,6 +3,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/EquivalenceClasses.h"
 #include "llvm/ADT/SmallVector.h"
 #include <vector>
@@ -29,12 +30,15 @@ public:
 class EGraph;
 class EClass {
   // Mapping <user opcode, operand id> -> <sorted array of of user>
-  llvm::DenseMap<std::pair<Opcode, unsigned>, std::vector<ENode *>> uses;
+  llvm::DenseMap<std::pair<Opcode, unsigned>, std::set<ENode *>> uses;
+  llvm::DenseSet<ENode *> users;
   // Partitioning the nodes by opcode
-  llvm::DenseMap<Opcode, std::vector<ENode *>> opcodeToNodesMap;
+  llvm::DenseMap<Opcode, std::set<ENode *>> opcodeToNodesMap;
 
 public:
   EClass() = default;
+  EClass &operator=(EClass &&) = default;
+
   void addNode(ENode *node);
   // Record that fact that `user`'s `i`th operand is `this` EClass
   void addUse(ENode *user, unsigned i);
@@ -44,6 +48,10 @@ public:
     uses.swap(other->uses);
     opcodeToNodesMap.swap(other->opcodeToNodesMap);
   }
+  llvm::iterator_range<decltype(users)::iterator> getUsers() {
+    return llvm::make_range(users.begin(), users.end());
+  }
+  void repair(EGraph *);
 };
 
 struct NodeKey {
@@ -79,14 +87,19 @@ class EGraph {
   // List of e-classs that require repair
   std::vector<EClass *> repairList;
 
+  void repair(EClass *);
+
 public:
+  NodeKey canonicalize(Opcode opcode, llvm::ArrayRef<EClass *> operands);
   EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands);
   EClass *getLeader(EClass *c) const { return ec.getLeaderValue(c); }
   ENode *findNode(Opcode opcode, llvm::ArrayRef<EClass *> operands);
+  ENode *findNode(NodeKey);
   bool isEquivalent(EClass *c1, EClass *c2) const {
     return ec.isEquivalent(c1, c2);
   }
   EClass *merge(EClass *c1, EClass *c2);
+  void rebuild();
 };
 
 #endif // EGRAPH_H
