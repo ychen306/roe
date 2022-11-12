@@ -24,7 +24,7 @@ include_directories(${LLVM_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include)
 link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(-fno-rtti -fvisibility=hidden)
 
-add_library(EGraph STATIC EGraph.cpp)
+add_library(EGraph STATIC EGraph.cpp Pattern.cpp)
 
 include(GoogleTest)
 add_executable(tests tests.cpp)

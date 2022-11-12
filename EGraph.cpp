@@ -1,4 +1,5 @@
 #include "EGraph.h"
+#include "Pattern.h"
 #include "llvm/Support/raw_ostream.h"
 
 using llvm::errs;
