@@ -36,4 +36,6 @@ TEST(PatternTest, make) {
   ASSERT_TRUE(x->isVar());
   ASSERT_TRUE(y->isVar());
   ASSERT_FALSE(add->isVar());
+  ASSERT_EQ(add->getOperands()[0], x);
+  ASSERT_EQ(add->getOperands()[1], y);
 }
