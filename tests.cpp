@@ -1,4 +1,5 @@
 #include "EGraph.h"
+#include "Pattern.h"
 #include "gtest/gtest.h"
 
 TEST(MakeTest, simple) {
@@ -26,4 +27,10 @@ TEST(MakeTest, rebuild) {
   ASSERT_NE(g.getLeader(fx), g.getLeader(fy));
   g.rebuild();
   ASSERT_EQ(g.getLeader(fx), g.getLeader(fy));
+}
+
+TEST(PatternTest, make) {
+  auto x = Pattern::var();
+  auto y = Pattern::var();
+  auto add = Pattern::make(0, {x, y});
 }

@@ -16,12 +16,12 @@ class Pattern {
   Pattern(Opcode opcode, std::vector<std::shared_ptr<Pattern>> operands);
 
 public:
-  std::shared_ptr<Pattern>
-  makePattern(Opcode opcode, std::vector<std::shared_ptr<Pattern>> operands) {
+  static std::shared_ptr<Pattern>
+  make(Opcode opcode, std::vector<std::shared_ptr<Pattern>> operands) {
     return std::shared_ptr<Pattern>(new Pattern(opcode, operands));
   }
 
-  std::shared_ptr<Pattern> makeVar() { return std::shared_ptr<Pattern>(); }
+  static std::shared_ptr<Pattern> var() { return std::shared_ptr<Pattern>(); }
 
   bool isVar() const { return isLeaf; }
 
