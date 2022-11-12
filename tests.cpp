@@ -36,8 +36,8 @@ TEST(MakeTest, rebuild2) {
   auto *a = g.make(2);
   auto *b = g.make(3);
 
-  auto *fxy = g.make(4, {x,y});
-  auto *fab = g.make(4, {a,b});
+  auto *fxy = g.make(4, {x, y});
+  auto *fab = g.make(4, {a, b});
   ASSERT_NE(g.getLeader(fxy), g.getLeader(fab));
   g.merge(x, a);
   g.rebuild();
@@ -54,8 +54,8 @@ TEST(MakeTest, rebuild_nested) {
   auto *a = g.make(2);
   auto *b = g.make(3);
 
-  auto *fxy = g.make(4, {x,y});
-  auto *fab = g.make(4, {a,b});
+  auto *fxy = g.make(4, {x, y});
+  auto *fab = g.make(4, {a, b});
   auto h0 = g.make(5, {fxy, x});
   auto h1 = g.make(5, {fab, a});
   ASSERT_NE(g.getLeader(h0), g.getLeader(h1));
@@ -74,8 +74,8 @@ TEST(MakeTest, rebuild_nested2) {
   auto *b = g.make(4);
   auto *c = g.make(5);
 
-  auto *fxy = g.make(6, {x,y});
-  auto *fab = g.make(6, {a,b});
+  auto *fxy = g.make(6, {x, y});
+  auto *fab = g.make(6, {a, b});
   auto h0 = g.make(7, {fxy, z});
   auto h1 = g.make(7, {fab, c});
   ASSERT_NE(g.getLeader(h0), g.getLeader(h1));
