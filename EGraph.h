@@ -35,6 +35,8 @@ class EClass {
   // Partitioning the nodes by opcode
   llvm::DenseMap<Opcode, llvm::DenseSet<ENode *>> opcodeToNodesMap;
 
+  void repairUserSets(const llvm::DenseMap<ENode *, ENode *> &oldToNewUserMap);
+
 public:
   EClass() = default;
   EClass &operator=(EClass &&) = default;

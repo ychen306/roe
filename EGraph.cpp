@@ -113,7 +113,23 @@ void EGraph::rebuild() {
       todo.insert(getLeader(c));
     repairList.clear();
     for (auto *c : todo)
-      c->repair(this);
+      getLeader(c)->repair(this);
+  }
+}
+
+void EClass::repairUserSets(const llvm::DenseMap<ENode *, ENode *> &oldToNewUserMap) {
+  // Fix the use index by replacing the duplicated user
+  // with their new canonical user
+  for (auto &kv : oldToNewUserMap) {
+    if (users.erase(kv.first))
+      users.insert(kv.second);
+  }
+
+  for (auto &nodes : llvm::make_second_range(uses)) {
+    for (auto &kv : oldToNewUserMap) {
+      if (nodes.erase(kv.first))
+        nodes.insert(kv.second);
+    }
   }
 }
 
@@ -135,30 +151,20 @@ void EClass::repair(EGraph *g) {
       continue;
 
     ENode *node0 = nodes.front();
-    assert(node0->getClass());
-    users.erase(node0);
-
     auto *c = node0->getClass();
+    assert(c);
     ENode *user = g->findNode(key);
 
     oldToNewUserMap.try_emplace(node0, user);
     for (auto *node : llvm::drop_begin(nodes)) {
       assert(node->getClass());
       g->merge(c, node->getClass());
-      users.erase(node);
       oldToNewUserMap.try_emplace(node, user);
     }
 
-    user->setClass(node0->getClass());
+    user->setClass(c);
     users.insert(user);
-  }
-
-  // Fix the use index by replacing the duplicated user
-  // with their new canonical user
-  for (auto &nodes : llvm::make_second_range(uses)) {
-    for (auto &kv : oldToNewUserMap) {
-      if (nodes.erase(kv.first))
-        nodes.insert(kv.second);
-    }
+    for (auto *operand : user->getOperands())
+      g->getLeader(operand)->repairUserSets(oldToNewUserMap);
   }
 }

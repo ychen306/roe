@@ -2,6 +2,8 @@
 #include "Pattern.h"
 #include "gtest/gtest.h"
 
+#include "llvm/Support/raw_ostream.h"
+
 TEST(MakeTest, simple) {
   EGraph g;
   auto *x = g.make(0);
@@ -50,6 +52,8 @@ TEST(MakeTest, rebuild2) {
   ASSERT_EQ(g.getLeader(fxy), g.getLeader(fab));
   auto *usersOfX = g.getLeader(x)->getUsersByUses(4, 0);
   ASSERT_EQ(usersOfX->size(), 1);
+  auto *usersOfB = g.getLeader(b)->getUsersByUses(4, 1);
+  ASSERT_EQ(usersOfB->size(), 1);
 }
 
 TEST(MakeTest, rebuild_nested) {
