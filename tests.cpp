@@ -55,6 +55,7 @@ TEST(MakeTest, rebuild2) {
   ASSERT_EQ(usersOfX->size(), 1);
   auto *usersOfB = g.getLeader(b)->getUsersByUses(4, 1);
   ASSERT_EQ(usersOfB->size(), 1);
+  ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 3);
 }
 
 TEST(MakeTest, rebuild_nested) {
@@ -73,6 +74,7 @@ TEST(MakeTest, rebuild_nested) {
   g.merge(y, b);
   g.rebuild();
   ASSERT_EQ(g.getLeader(h0), g.getLeader(h1));
+  ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 4);
 }
 
 TEST(MakeTest, rebuild_nested2) {
