@@ -149,8 +149,7 @@ TEST(MatchTest, simple2) {
 
   llvm::DenseMap<Pattern *, EClass *> subst1(m0.begin(), m0.end());
   llvm::DenseMap<Pattern *, EClass *> subst2(m1.begin(), m1.end());
-  bool isXY = subst1[px.get()] == x;
-  if (isXY) {
+  if (subst1[px.get()] == x) {
     ASSERT_EQ(subst1[px.get()], x);
     ASSERT_EQ(subst1[py.get()], y);
     ASSERT_EQ(subst2[px.get()], a);
