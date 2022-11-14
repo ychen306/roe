@@ -93,7 +93,27 @@ class EGraph {
   void repair(EClass *);
   EClass *newClass();
 
+  using ec_iterator = decltype(ec)::iterator;
+  using class_ptr = EClass *;
 public:
+  class class_iterator;
+  using class_iterator_base = llvm::iterator_adaptor_base<
+      class_iterator, ec_iterator,
+      typename std::iterator_traits<ec_iterator>::iterator_category, class_ptr,
+      std::ptrdiff_t, class_ptr *, class_ptr &>;
+
+  class class_iterator : public class_iterator_base {
+    llvm::EquivalenceClasses<EClass *> &ec;
+  public:
+    class_iterator(llvm::EquivalenceClasses<EClass *> &ec, ec_iterator it)
+        : class_iterator_base(it), ec(ec) {}
+    class_ptr operator*() const { return *ec.member_begin(I); }
+  };
+
+  class_iterator class_begin() { return class_iterator(ec, ec.begin()); }
+
+  class_iterator class_end() { return class_iterator(ec, ec.end()); }
+
   NodeKey canonicalize(Opcode opcode, llvm::ArrayRef<EClass *> operands);
   EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands = llvm::None);
   EClass *getLeader(EClass *c) const { return ec.getLeaderValue(c); }
