@@ -11,6 +11,7 @@ TEST(MakeTest, simple) {
   ASSERT_NE(g.getLeader(x), g.getLeader(y));
   g.merge(x, y);
   ASSERT_EQ(g.getLeader(x), g.getLeader(y));
+  ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 2);
 }
 
 TEST(MakeTest, hashcons) {
