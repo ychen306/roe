@@ -11,13 +11,12 @@ TEST(MakeTest, simple) {
   ASSERT_NE(g.getLeader(x), g.getLeader(y));
   g.merge(x, y);
   ASSERT_EQ(g.getLeader(x), g.getLeader(y));
-  ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 2);
+  ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 1);
 }
 
 TEST(MakeTest, hashcons) {
   EGraph g;
   ASSERT_EQ(g.make(0), g.make(0));
-  ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 1);
 }
 
 TEST(MakeTest, rebuild) {
