@@ -95,6 +95,7 @@ class EGraph {
 
   using ec_iterator = decltype(ec)::iterator;
   using class_ptr = EClass *;
+
 public:
   class class_iterator;
   using class_iterator_base = llvm::iterator_adaptor_base<
@@ -104,10 +105,23 @@ public:
 
   class class_iterator : public class_iterator_base {
     llvm::EquivalenceClasses<EClass *> &ec;
+
+    void skipEmptyClasses() {
+      while (I != ec.end() && ec.member_begin(I) == ec.member_end())
+        ++I;
+    }
+
   public:
     class_iterator(llvm::EquivalenceClasses<EClass *> &ec, ec_iterator it)
-        : class_iterator_base(it), ec(ec) {}
+        : class_iterator_base(it), ec(ec) {
+      skipEmptyClasses();
+    }
     class_ptr operator*() const { return *ec.member_begin(I); }
+    class_iterator &operator++() {
+      ++I;
+      skipEmptyClasses();
+      return *this;
+    }
   };
 
   class_iterator class_begin() { return class_iterator(ec, ec.begin()); }
