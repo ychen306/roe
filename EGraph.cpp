@@ -51,6 +51,13 @@ llvm::DenseSet<ENode *> *EClass::getUsersByUses(Opcode opcode,
   return nullptr;
 }
 
+llvm::DenseSet<ENode *> *EClass::getNodesByOpcode(Opcode opcode) {
+  auto it = opcodeToNodesMap.find(opcode);
+  if (it != opcodeToNodesMap.end())
+    return &it->second;
+  return nullptr;
+}
+
 EClass *EGraph::newClass() {
   auto *c = classes.emplace_back(new EClass()).get();
   ec.insert(c);

@@ -103,10 +103,13 @@ TEST(MakeTest, rebuild_nested2) {
 TEST(PatternTest, make) {
   auto x = Pattern::var();
   auto y = Pattern::var();
-  auto add = Pattern::make(0, {x, y});
+  auto f = Pattern::make(42, {x, y});
   ASSERT_TRUE(x->isVar());
   ASSERT_TRUE(y->isVar());
-  ASSERT_FALSE(add->isVar());
-  ASSERT_EQ(add->getOperands()[0], x);
-  ASSERT_EQ(add->getOperands()[1], y);
+  ASSERT_FALSE(f->isVar());
+  ASSERT_EQ(f->getOperands()[0], x);
+  ASSERT_EQ(f->getOperands()[1], y);
+}
+
+TEST(MatchTest, simple) {
 }

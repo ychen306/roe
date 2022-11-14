@@ -36,6 +36,14 @@ public:
   void addUse(Pattern *user, unsigned operandId) {
     uses.emplace_back(user, operandId);
   }
+
+  llvm::ArrayRef<std::pair<Pattern *, unsigned>> getUses() const {
+    return uses;
+  }
 };
+
+using Substitution = llvm::SmallVector<std::pair<Pattern *, EClass *>, 4>;
+
+std::vector<Substitution> match(Pattern *, EGraph &);
 
 #endif // PATTERN_H

@@ -54,6 +54,7 @@ public:
     return llvm::make_range(users.begin(), users.end());
   }
   llvm::DenseSet<ENode *> *getUsersByUses(Opcode opcode, unsigned operandId);
+  llvm::DenseSet<ENode *> *getNodesByOpcode(Opcode opcode);
   void repair(EGraph *);
 };
 
