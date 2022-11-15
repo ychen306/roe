@@ -4,6 +4,9 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopedHashTable.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Support/raw_ostream.h"
+
+using llvm::errs;
 
 Pattern::Pattern(Opcode opcode,
                  std::vector<std::shared_ptr<Pattern>> theOperands)
@@ -132,7 +135,7 @@ bool PatternMatcher::runOnPattern(Pattern *pat, unsigned level) {
     if (!user)
       continue;
     // `pat` has to bind to a node in class `c`
-    auto *c = user->getOperands()[operandId];
+    auto *c = g.getLeader(user->getOperands()[operandId]);
     auto *nodes = c->getNodesByOpcode(pat->getOpcode());
     // Backtrack if stuck
     if (!nodes || nodes->empty())
@@ -152,7 +155,7 @@ bool PatternMatcher::runOnPattern(Pattern *pat, unsigned level) {
     else
       operandClass = boundValue.get<ENode *>()->getClass();
     assert(operandClass);
-    auto *nodes = operandClass->getUsersByUses(pat->getOpcode(), operandId);
+    auto *nodes = g.getLeader(operandClass)->getUsersByUses(pat->getOpcode(), operandId);
     // Backtrack if stuck
     if (!nodes || nodes->empty())
       return false;
@@ -171,6 +174,7 @@ bool PatternMatcher::runOnPattern(Pattern *pat, unsigned level) {
   // Try everything
   bool matched = false;
   for (auto *c : classes()) {
+    assert(g.getLeader(c) == c);
     auto *nodes = c->getNodesByOpcode(pat->getOpcode());
     if (!nodes)
       continue;

@@ -166,18 +166,21 @@ TEST(MatchTest, simple2) {
 TEST(MatchTest, ex1) {
   EGraph g;
 
-  std::vector<EClass *> xs;
   int n = 100;
+  int opcode_f = n + 1;
+  int opcode_h = n + 2;
+
+  std::vector<EClass *> xs;
   for (int i = 0; i < n; i++)
     xs.push_back(g.make(i));
 
   std::vector<EClass *> hs;
   for (int i = 0; i < n; i++)
-    hs.push_back(g.make(1000, {xs[i]}));
+    hs.push_back(g.make(opcode_h, {xs[i]}));
 
   std::vector<EClass *> fs;
   for (int i = 0; i < n; i++)
-    fs.push_back(g.make(2000, {xs[i], hs[i]}));
+    fs.push_back(g.make(opcode_f, {xs[i], hs[i]}));
 
   ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 3 * n);
 
@@ -187,10 +190,12 @@ TEST(MatchTest, ex1) {
   }
 
   ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 2 + n);
+  for (int i = 1; i < n; i++)
+    ASSERT_NE(g.getLeader(xs[i-1]), g.getLeader(xs[i]));
 
   auto alpha = Pattern::var();
-  auto ph = Pattern::make(1000, {alpha});
-  auto pf = Pattern::make(2000, {alpha, ph});
+  auto ph = Pattern::make(opcode_h, {alpha});
+  auto pf = Pattern::make(opcode_f, {alpha, ph});
   auto matches = match(pf.get(), g);
   ASSERT_EQ(matches.size(), n);
 }
