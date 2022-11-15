@@ -161,3 +161,36 @@ TEST(MatchTest, simple2) {
     ASSERT_EQ(subst1[py.get()], b);
   }
 }
+
+// Example from the relational e-matching paper
+TEST(MatchTest, ex1) {
+  EGraph g;
+
+  std::vector<EClass *> xs;
+  int n = 100;
+  for (int i = 0; i < n; i++)
+    xs.push_back(g.make(i));
+
+  std::vector<EClass *> hs;
+  for (int i = 0; i < n; i++)
+    hs.push_back(g.make(1000, {xs[i]}));
+
+  std::vector<EClass *> fs;
+  for (int i = 0; i < n; i++)
+    fs.push_back(g.make(2000, {xs[i], hs[i]}));
+
+  ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 3 * n);
+
+  for (int i = 0; i < n; i++) {
+    g.merge(fs[0], fs[i]);
+    g.merge(hs[0], hs[i]);
+  }
+
+  ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 2 + n);
+
+  auto alpha = Pattern::var();
+  auto ph = Pattern::make(1000, {alpha});
+  auto pf = Pattern::make(2000, {alpha, ph});
+  auto matches = match(pf.get(), g);
+  ASSERT_EQ(matches.size(), n);
+}
