@@ -199,3 +199,64 @@ TEST(MatchTest, ex1) {
   auto matches = match(pf.get(), g);
   ASSERT_EQ(matches.size(), n);
 }
+
+// Copied from egg's unit test
+TEST(MatchTest, nonlinear) {
+  EGraph g;
+  auto a = g.make(0);
+  auto b = g.make(1);
+  int zero = 2, one = 3;
+  auto x = g.make(zero);
+  auto y = g.make(one);
+  int f_opcode = 100, h_opcode = 200, g_opcode = 300, foo = 400;
+
+  g.make(f_opcode, {a, a});
+  g.make(f_opcode, {a, g.make(g_opcode, {a})});
+  g.make(f_opcode, {a, g.make(g_opcode, {b})});
+  g.make(h_opcode, {g.make(foo, {a, b}), x, y});
+  g.make(h_opcode, {g.make(foo, {a, b}), y, x});
+  g.make(h_opcode, {g.make(foo, {a, b}), x, x});
+
+  {
+    auto x = Pattern::var();
+    auto y = Pattern::var();
+    auto p_fxy = Pattern::make(f_opcode, {x, y});
+    ASSERT_EQ(match(p_fxy.get(), g).size(), 3);
+  }
+
+  {
+    auto x = Pattern::var();
+    auto p_fxx = Pattern::make(f_opcode, {x, x});
+    ASSERT_EQ(match(p_fxx.get(), g).size(), 1);
+  }
+
+  {
+    auto x = Pattern::var();
+    auto y = Pattern::var();
+    auto p_gy = Pattern::make(g_opcode, {y});
+    auto p_fxgy = Pattern::make(f_opcode, {x, p_gy});
+    ASSERT_EQ(match(p_fxgy.get(), g).size(), 2);
+  }
+
+  {
+    auto x = Pattern::var();
+    auto p_gx = Pattern::make(g_opcode, {x});
+    auto p_fxgx = Pattern::make(f_opcode, {x, p_gx});
+    ASSERT_EQ(match(p_fxgx.get(), g).size(), 1);
+  }
+
+  {
+    auto x = Pattern::var();
+    auto p_zero = Pattern::make(zero, {});
+    auto p = Pattern::make(h_opcode, {x, p_zero, p_zero});
+    ASSERT_EQ(match(p.get(), g).size(), 1);
+  }
+
+  {
+    auto x = Pattern::var();
+    auto y = Pattern::var();
+    auto p_zero = Pattern::make(zero, {});
+    auto p = Pattern::make(h_opcode, {x, p_zero, y});
+    ASSERT_EQ(match(p.get(), g).size(), 2);
+  }
+}
