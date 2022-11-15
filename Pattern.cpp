@@ -198,3 +198,12 @@ std::vector<Substitution> match(Pattern *pat, EGraph &g) {
 }
 
 Rewrite::~Rewrite() {}
+
+void Rewrite::run(EGraph &g) {
+  auto matches = match(root.get(), g);
+  for (auto &m : matches) {
+    PatternToClassMap subst(m.begin(), m.end());
+    auto *c = apply(subst, g);
+    g.merge(c, subst.lookup(root.get()));
+  }
+}

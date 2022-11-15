@@ -272,11 +272,8 @@ struct Assoc : public Rewrite {
     root = make(opcode, x, y);
   }
 
-  void apply(const Substitution &s, EGraph &g) override {
-    llvm::SmallDenseMap<Pattern *, EClass *, 8> m(s.begin(), s.end());
-    auto *c = g.make(opcode, {m.lookup(y.get()), m.lookup(x.get())});
-    assert(m.count(root.get()));
-    g.merge(c, m.lookup(root.get()));
+  EClass *apply(const PatternToClassMap &m, EGraph &g) override {
+    return g.make(opcode, {m.lookup(y.get()), m.lookup(x.get())});
   }
 };
 
@@ -290,9 +287,7 @@ TEST(RewriteTest, assoc) {
   ASSERT_NE(g.getLeader(ab), g.getLeader(ba));
 
   Assoc assoc(add);
-  auto matches = match(assoc.sourcePattern(), g);
-  for (auto &m : matches)
-    assoc.apply(m, g);
+  assoc.run(g);
   g.rebuild();
   ASSERT_EQ(g.getLeader(ab), g.getLeader(ba));
 }

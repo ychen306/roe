@@ -63,12 +63,16 @@ protected:
     return patternNodes.back();
   }
 
+  using PatternToClassMap = llvm::SmallDenseMap<Pattern *, EClass *, 4>;
+
+  // Apply the rewrite given a matched pattern
+  virtual EClass *apply(const PatternToClassMap &, EGraph &) = 0;
+
 public:
   virtual ~Rewrite();
   // The left-hand side
   Pattern *sourcePattern() const { return root.get(); }
-  // Apply the rewrite given a matched pattern
-  virtual void apply(const Substitution &, EGraph &) = 0;
+  void run(EGraph &);
 };
 
 #endif // PATTERN_H
