@@ -287,7 +287,8 @@ TEST(RewriteTest, assoc) {
   ASSERT_NE(g.getLeader(ab), g.getLeader(ba));
 
   Assoc assoc(add);
-  assoc.run(g);
+  auto matches = match(assoc.sourcePattern(), g);
+  assoc.applyMatches(matches, g);
   g.rebuild();
   ASSERT_EQ(g.getLeader(ab), g.getLeader(ba));
 }

@@ -139,6 +139,7 @@ public:
   }
   EClass *merge(EClass *c1, EClass *c2);
   void rebuild();
+  unsigned numNodes() const { return nodes.size(); }
 };
 
 #endif // EGRAPH_H

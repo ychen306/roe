@@ -199,11 +199,23 @@ std::vector<Substitution> match(Pattern *pat, EGraph &g) {
 
 Rewrite::~Rewrite() {}
 
-void Rewrite::run(EGraph &g) {
-  auto matches = match(root.get(), g);
+void Rewrite::applyMatches(llvm::ArrayRef<Substitution> matches, EGraph &g) {
   for (auto &m : matches) {
     PatternToClassMap subst(m.begin(), m.end());
     auto *c = apply(subst, g);
     g.merge(c, subst.lookup(root.get()));
   }
+}
+
+void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite>> rewrites, EGraph &g) {
+  unsigned size;
+  do {
+    size = g.numNodes();
+    std::vector<std::vector<Substitution>> matches;
+    for (auto &rw : rewrites)
+      matches.push_back(match(rw->sourcePattern(), g));
+    for (unsigned i = 0, n = rewrites.size(); i < n; i++)
+      rewrites[i]->applyMatches(matches[i], g);
+    g.rebuild();
+  } while (size != g.numNodes());
 }

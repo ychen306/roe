@@ -72,7 +72,9 @@ public:
   virtual ~Rewrite();
   // The left-hand side
   Pattern *sourcePattern() const { return root.get(); }
-  void run(EGraph &);
+  void applyMatches(llvm::ArrayRef<Substitution> matches, EGraph &);
 };
+
+void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite>>, EGraph &);
 
 #endif // PATTERN_H
