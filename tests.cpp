@@ -3,6 +3,7 @@
 #include "gtest/gtest.h"
 
 #include "llvm/Support/raw_ostream.h"
+using llvm::errs;
 
 TEST(MakeTest, simple) {
   EGraph g;
@@ -259,4 +260,39 @@ TEST(MatchTest, nonlinear) {
     auto p = Pattern::make(h_opcode, {x, p_zero, y});
     ASSERT_EQ(match(p.get(), g).size(), 2);
   }
+}
+
+struct Assoc : public Rewrite {
+  PatternPtr x, y;
+  Opcode opcode;
+
+  Assoc(Opcode opcode) : opcode(opcode) {
+    x = var();
+    y = var();
+    root = make(opcode, x, y);
+  }
+
+  void apply(const Substitution &s, EGraph &g) override {
+    llvm::SmallDenseMap<Pattern *, EClass *, 8> m(s.begin(), s.end());
+    auto *c = g.make(opcode, {m.lookup(y.get()), m.lookup(x.get())});
+    assert(m.count(root.get()));
+    g.merge(c, m.lookup(root.get()));
+  }
+};
+
+TEST(RewriteTest, assoc) {
+  EGraph g;
+  int add = 100;
+  auto a = g.make(0);
+  auto b = g.make(1);
+  auto ab = g.make(add, {a, b});
+  auto ba = g.make(add, {b, a});
+  ASSERT_NE(g.getLeader(ab), g.getLeader(ba));
+
+  Assoc assoc(add);
+  auto matches = match(assoc.sourcePattern(), g);
+  for (auto &m : matches)
+    assoc.apply(m, g);
+  g.rebuild();
+  ASSERT_EQ(g.getLeader(ab), g.getLeader(ba));
 }

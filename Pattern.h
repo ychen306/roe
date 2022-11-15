@@ -46,4 +46,29 @@ using Substitution = llvm::SmallVector<std::pair<Pattern *, EClass *>, 4>;
 
 std::vector<Substitution> match(Pattern *, EGraph &);
 
+using PatternPtr = std::shared_ptr<Pattern>;
+
+class Rewrite {
+  std::vector<PatternPtr> patternNodes;
+
+protected:
+  PatternPtr root;
+  template <typename... ArgTypes> PatternPtr make(Opcode op, ArgTypes... args) {
+    patternNodes.push_back(
+        Pattern::make(op, {std::forward<ArgTypes>(args)...}));
+    return patternNodes.back();
+  }
+  PatternPtr var() {
+    patternNodes.push_back(Pattern::var());
+    return patternNodes.back();
+  }
+
+public:
+  virtual ~Rewrite();
+  // The left-hand side
+  Pattern *sourcePattern() const { return root.get(); }
+  // Apply the rewrite given a matched pattern
+  virtual void apply(const Substitution &, EGraph &) = 0;
+};
+
 #endif // PATTERN_H

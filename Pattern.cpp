@@ -17,6 +17,7 @@ Pattern::Pattern(Opcode opcode,
 
 namespace {
 class PatternMatcher {
+  Pattern *root;
   EGraph &g;
   std::vector<Substitution> &matches;
   llvm::SmallVector<Pattern *> patternNodes;
@@ -37,7 +38,7 @@ public:
 
 PatternMatcher::PatternMatcher(Pattern *pat, EGraph &g,
                                std::vector<Substitution> &matches)
-    : g(g), matches(matches) {
+    : root(pat), g(g), matches(matches) {
   llvm::SmallPtrSet<Pattern *, 8> visited;
   llvm::SmallVector<Pattern *, 8> worklist{pat};
   while (!worklist.empty()) {
@@ -56,6 +57,7 @@ void PatternMatcher::outputSubstitution() {
     if (pat->isVar())
       match.emplace_back(pat, subst.lookup(pat).get<EClass *>());
   }
+  match.emplace_back(root, subst.lookup(root).get<ENode *>()->getClass());
 }
 
 bool PatternMatcher::runImpl(unsigned level) {
@@ -194,3 +196,5 @@ std::vector<Substitution> match(Pattern *pat, EGraph &g) {
   matcher.run();
   return matches;
 }
+
+Rewrite::~Rewrite() {}
