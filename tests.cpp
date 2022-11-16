@@ -294,6 +294,38 @@ struct Assoc : public Rewrite {
   }
 };
 
+struct Distribute : public Rewrite {
+  PatternPtr x, y, z;
+  Opcode add, mul;
+
+  Distribute(Opcode add, Opcode mul) : add(add), mul(mul) {
+    x = var();
+    y = var();
+    z = var();
+    root = make(mul, make(add, x, y), z);
+  }
+
+  EClass *apply(const PatternToClassMap &m, EGraph &g) override {
+    auto xz = g.make(mul, {m.lookup(x.get()), m.lookup(z.get())});
+    auto yz = g.make(mul, {m.lookup(y.get()), m.lookup(z.get())});
+    return g.make(add, {xz, yz});
+  }
+};
+
+struct AddZero : public Rewrite {
+  PatternPtr x;
+  Opcode add;
+
+  AddZero(Opcode add, Opcode zero) : add(add) {
+    x = var();
+    root = make(add, x, make(zero));
+  }
+
+  EClass *apply(const PatternToClassMap &m, EGraph &g) override {
+    return m.lookup(x.get());
+  }
+};
+
 TEST(RewriteTest, commute) {
   EGraph g;
   int add = 100;
@@ -327,4 +359,26 @@ TEST(RewriteTest, assoc) {
   assoc.applyMatches(matches, g);
   g.rebuild();
   ASSERT_EQ(g.getLeader(ab_c), g.getLeader(a_bc));
+}
+
+TEST(RewriteTest, ab) {
+  int add = 100, mul = 200;
+  std::vector<std::unique_ptr<Rewrite>> rewrites;
+  rewrites.emplace_back(new Commute(add));
+  rewrites.emplace_back(new Commute(mul));
+  rewrites.emplace_back(new Assoc(add));
+  rewrites.emplace_back(new Distribute(add, mul));
+
+  EGraph g;
+  auto a = g.make(0);
+  auto b = g.make(1);
+  auto c = g.make(2);
+  auto b_plus_c = g.make(add, {b, c});
+  auto a_bc = g.make(mul, {b_plus_c, a});
+  auto ac = g.make(mul, {a, b});
+  auto ab = g.make(mul, {a, c});
+  auto ac_plus_ab = g.make(add, {ac, ab});
+  ASSERT_NE(g.getLeader(a_bc), g.getLeader(ac_plus_ab));
+  saturate(rewrites, g);
+  ASSERT_EQ(g.getLeader(a_bc), g.getLeader(ac_plus_ab));
 }
