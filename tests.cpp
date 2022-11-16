@@ -262,11 +262,11 @@ TEST(MatchTest, nonlinear) {
   }
 }
 
-struct Assoc : public Rewrite {
+struct Commute : public Rewrite {
   PatternPtr x, y;
   Opcode opcode;
 
-  Assoc(Opcode opcode) : opcode(opcode) {
+  Commute(Opcode opcode) : opcode(opcode) {
     x = var();
     y = var();
     root = make(opcode, x, y);
@@ -277,7 +277,7 @@ struct Assoc : public Rewrite {
   }
 };
 
-TEST(RewriteTest, assoc) {
+TEST(RewriteTest, commute) {
   EGraph g;
   int add = 100;
   auto a = g.make(0);
@@ -286,9 +286,9 @@ TEST(RewriteTest, assoc) {
   auto ba = g.make(add, {b, a});
   ASSERT_NE(g.getLeader(ab), g.getLeader(ba));
 
-  Assoc assoc(add);
-  auto matches = match(assoc.sourcePattern(), g);
-  assoc.applyMatches(matches, g);
+  Commute commute(add);
+  auto matches = match(commute.sourcePattern(), g);
+  commute.applyMatches(matches, g);
   g.rebuild();
   ASSERT_EQ(g.getLeader(ab), g.getLeader(ba));
 }
