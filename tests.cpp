@@ -277,6 +277,23 @@ struct Commute : public Rewrite {
   }
 };
 
+struct Assoc : public Rewrite {
+  PatternPtr x, y, z;
+  Opcode opcode;
+
+  Assoc(Opcode opcode) : opcode(opcode) {
+    x = var();
+    y = var();
+    z = var();
+    root = make(opcode, make(opcode, x, y), z);
+  }
+
+  EClass *apply(const PatternToClassMap &m, EGraph &g) override {
+    auto yz = g.make(opcode, {m.lookup(y.get()), m.lookup(z.get())});
+    return g.make(opcode, {m.lookup(x.get()), yz});
+  }
+};
+
 TEST(RewriteTest, commute) {
   EGraph g;
   int add = 100;
@@ -291,4 +308,23 @@ TEST(RewriteTest, commute) {
   commute.applyMatches(matches, g);
   g.rebuild();
   ASSERT_EQ(g.getLeader(ab), g.getLeader(ba));
+}
+
+TEST(RewriteTest, assoc) {
+  EGraph g;
+  int add = 100;
+  auto a = g.make(0);
+  auto b = g.make(1);
+  auto c = g.make(2);
+  auto ab = g.make(add, {a, b});
+  auto bc = g.make(add, {b, c});
+  auto ab_c = g.make(add, {ab, c});
+  auto a_bc = g.make(add, {a, bc});
+  ASSERT_NE(g.getLeader(ab_c), g.getLeader(a_bc));
+
+  Assoc assoc(add);
+  auto matches = match(assoc.sourcePattern(), g);
+  assoc.applyMatches(matches, g);
+  g.rebuild();
+  ASSERT_EQ(g.getLeader(ab_c), g.getLeader(a_bc));
 }
