@@ -1,5 +1,6 @@
 #include "EGraph.h"
 #include "Pattern.h"
+#include "Language.h"
 #include "gtest/gtest.h"
 
 #include "llvm/Support/raw_ostream.h"
@@ -381,4 +382,20 @@ TEST(RewriteTest, ab) {
   ASSERT_NE(g.getLeader(a_bc), g.getLeader(ac_plus_ab));
   saturate(rewrites, g);
   ASSERT_EQ(g.getLeader(a_bc), g.getLeader(ac_plus_ab));
+}
+
+TEST(LanguageTest, variables) {
+  EGraph g;
+  Language<int> l(g);
+  ASSERT_TRUE(g.isEquivalent(l.var("x"), l.var("x")));
+  ASSERT_FALSE(g.isEquivalent(l.var("x"), l.var("y")));
+}
+
+TEST(LanguageTest, opcode) {
+  EGraph g;
+  Language<int> l(g);
+  auto *x = l.var("x");
+  auto *y = l.var("y");
+  ASSERT_TRUE(g.isEquivalent(l.make("+", {x, y}), l.make("+", {x, y})));
+  ASSERT_FALSE(g.isEquivalent(l.make("+", {x, y}), l.make("-", {x, y})));
 }
