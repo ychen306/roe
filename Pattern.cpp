@@ -9,7 +9,7 @@
 using llvm::errs;
 
 Pattern::Pattern(Opcode opcode,
-                 std::vector<std::shared_ptr<Pattern>> theOperands)
+                 std::vector<Pattern *> theOperands)
     : isLeaf(false), opcode(opcode), operands(std::move(theOperands)) {
   for (auto item : llvm::enumerate(operands))
     item.value()->addUse(this, item.index());
@@ -46,8 +46,7 @@ PatternMatcher::PatternMatcher(Pattern *pat, EGraph &g,
     if (!visited.insert(pat).second)
       continue;
     patternNodes.push_back(pat);
-    for (auto &subPat : pat->getOperands())
-      worklist.push_back(subPat.get());
+    worklist.append(pat->operand_begin(), pat->operand_end());
   }
 }
 
@@ -146,7 +145,7 @@ bool PatternMatcher::runOnPattern(Pattern *pat, unsigned level) {
   }
   // Find candidates based on bound operands
   for (auto item : llvm::enumerate(pat->getOperands())) {
-    Pattern *operandPat = item.value().get();
+    Pattern *operandPat = item.value();
     unsigned operandId = item.index();
     auto boundValue = subst.lookup(operandPat);
     if (boundValue.isNull())
@@ -203,7 +202,7 @@ void Rewrite::applyMatches(llvm::ArrayRef<Substitution> matches, EGraph &g) {
   for (auto &m : matches) {
     PatternToClassMap subst(m.begin(), m.end());
     auto *c = apply(subst, g);
-    g.merge(c, subst.lookup(root.get()));
+    g.merge(c, subst.lookup(root));
   }
 }
 

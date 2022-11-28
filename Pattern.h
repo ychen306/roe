@@ -8,30 +8,32 @@
 class Pattern {
   bool isLeaf;
   Opcode opcode;
-  std::vector<std::shared_ptr<Pattern>> operands;
+  std::vector<Pattern *> operands;
 
   std::vector<std::pair<Pattern *, unsigned>> uses;
 
   Pattern() : isLeaf(true) {}
-  Pattern(Opcode opcode, std::vector<std::shared_ptr<Pattern>> operands);
+  Pattern(Opcode opcode, std::vector<Pattern *> operands);
 
 public:
-  static std::shared_ptr<Pattern>
-  make(Opcode opcode, std::vector<std::shared_ptr<Pattern>> operands) {
-    return std::shared_ptr<Pattern>(new Pattern(opcode, operands));
+  static Pattern *make(Opcode opcode, std::vector<Pattern *> operands) {
+    return new Pattern(opcode, operands);
   }
 
-  static std::shared_ptr<Pattern> var() {
-    return std::shared_ptr<Pattern>(new Pattern());
+  static Pattern *var() {
+    return new Pattern();
   }
 
   bool isVar() const { return isLeaf; }
 
   Opcode getOpcode() const { return opcode; }
 
-  llvm::ArrayRef<std::shared_ptr<Pattern>> getOperands() const {
+  llvm::ArrayRef<Pattern *> getOperands() const {
     return operands;
   }
+
+  decltype(operands)::const_iterator operand_begin() const { return operands.begin(); }
+  decltype(operands)::const_iterator operand_end() const { return operands.end(); }
 
   void addUse(Pattern *user, unsigned operandId) {
     uses.emplace_back(user, operandId);
@@ -46,19 +48,17 @@ using Substitution = llvm::SmallVector<std::pair<Pattern *, EClass *>, 4>;
 
 std::vector<Substitution> match(Pattern *, EGraph &);
 
-using PatternPtr = std::shared_ptr<Pattern>;
-
 class Rewrite {
-  std::vector<PatternPtr> patternNodes;
+  std::vector<Pattern *> patternNodes;
 
 protected:
-  PatternPtr root;
-  template <typename... ArgTypes> PatternPtr make(Opcode op, ArgTypes... args) {
+  Pattern *root;
+  template <typename... ArgTypes> Pattern *make(Opcode op, ArgTypes... args) {
     patternNodes.push_back(
         Pattern::make(op, {std::forward<ArgTypes>(args)...}));
     return patternNodes.back();
   }
-  PatternPtr var() {
+  Pattern *var() {
     patternNodes.push_back(Pattern::var());
     return patternNodes.back();
   }
@@ -71,7 +71,7 @@ protected:
 public:
   virtual ~Rewrite();
   // The left-hand side
-  Pattern *sourcePattern() const { return root.get(); }
+  Pattern *sourcePattern() const { return root; }
   void applyMatches(llvm::ArrayRef<Substitution> matches, EGraph &);
 };
 

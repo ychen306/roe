@@ -121,13 +121,13 @@ TEST(MatchTest, simple) {
   auto x = g.make(0);
   auto y = g.make(1);
   auto f = g.make(42, {x, y});
-  auto matches = match(pf.get(), g);
+  auto matches = match(pf, g);
   ASSERT_EQ(matches.size(), 1);
 
   auto &m = matches.front();
   llvm::DenseMap<Pattern *, EClass *> subst(m.begin(), m.end());
-  ASSERT_EQ(subst[px.get()], x);
-  ASSERT_EQ(subst[py.get()], y);
+  ASSERT_EQ(subst[px], x);
+  ASSERT_EQ(subst[py], y);
 }
 
 TEST(MatchTest, simple2) {
@@ -142,7 +142,7 @@ TEST(MatchTest, simple2) {
   auto b = g.make(3);
   g.make(42, {x, y});
   g.make(42, {a, b});
-  auto matches = match(pf.get(), g);
+  auto matches = match(pf, g);
   ASSERT_EQ(matches.size(), 2);
 
   auto &m0 = matches[0];
@@ -150,16 +150,16 @@ TEST(MatchTest, simple2) {
 
   llvm::DenseMap<Pattern *, EClass *> subst1(m0.begin(), m0.end());
   llvm::DenseMap<Pattern *, EClass *> subst2(m1.begin(), m1.end());
-  if (subst1[px.get()] == x) {
-    ASSERT_EQ(subst1[px.get()], x);
-    ASSERT_EQ(subst1[py.get()], y);
-    ASSERT_EQ(subst2[px.get()], a);
-    ASSERT_EQ(subst2[py.get()], b);
+  if (subst1[px] == x) {
+    ASSERT_EQ(subst1[px], x);
+    ASSERT_EQ(subst1[py], y);
+    ASSERT_EQ(subst2[px], a);
+    ASSERT_EQ(subst2[py], b);
   } else {
-    ASSERT_EQ(subst2[px.get()], x);
-    ASSERT_EQ(subst2[py.get()], y);
-    ASSERT_EQ(subst1[px.get()], a);
-    ASSERT_EQ(subst1[py.get()], b);
+    ASSERT_EQ(subst2[px], x);
+    ASSERT_EQ(subst2[py], y);
+    ASSERT_EQ(subst1[px], a);
+    ASSERT_EQ(subst1[py], b);
   }
 }
 
@@ -197,7 +197,7 @@ TEST(MatchTest, ex1) {
   auto alpha = Pattern::var();
   auto ph = Pattern::make(opcode_h, {alpha});
   auto pf = Pattern::make(opcode_f, {alpha, ph});
-  auto matches = match(pf.get(), g);
+  auto matches = match(pf, g);
   ASSERT_EQ(matches.size(), n);
 }
 
@@ -222,13 +222,13 @@ TEST(MatchTest, nonlinear) {
     auto x = Pattern::var();
     auto y = Pattern::var();
     auto p_fxy = Pattern::make(f_opcode, {x, y});
-    ASSERT_EQ(match(p_fxy.get(), g).size(), 3);
+    ASSERT_EQ(match(p_fxy, g).size(), 3);
   }
 
   {
     auto x = Pattern::var();
     auto p_fxx = Pattern::make(f_opcode, {x, x});
-    ASSERT_EQ(match(p_fxx.get(), g).size(), 1);
+    ASSERT_EQ(match(p_fxx, g).size(), 1);
   }
 
   {
@@ -236,21 +236,21 @@ TEST(MatchTest, nonlinear) {
     auto y = Pattern::var();
     auto p_gy = Pattern::make(g_opcode, {y});
     auto p_fxgy = Pattern::make(f_opcode, {x, p_gy});
-    ASSERT_EQ(match(p_fxgy.get(), g).size(), 2);
+    ASSERT_EQ(match(p_fxgy, g).size(), 2);
   }
 
   {
     auto x = Pattern::var();
     auto p_gx = Pattern::make(g_opcode, {x});
     auto p_fxgx = Pattern::make(f_opcode, {x, p_gx});
-    ASSERT_EQ(match(p_fxgx.get(), g).size(), 1);
+    ASSERT_EQ(match(p_fxgx, g).size(), 1);
   }
 
   {
     auto x = Pattern::var();
     auto p_zero = Pattern::make(zero, {});
     auto p = Pattern::make(h_opcode, {x, p_zero, p_zero});
-    ASSERT_EQ(match(p.get(), g).size(), 1);
+    ASSERT_EQ(match(p, g).size(), 1);
   }
 
   {
@@ -258,12 +258,12 @@ TEST(MatchTest, nonlinear) {
     auto y = Pattern::var();
     auto p_zero = Pattern::make(zero, {});
     auto p = Pattern::make(h_opcode, {x, p_zero, y});
-    ASSERT_EQ(match(p.get(), g).size(), 2);
+    ASSERT_EQ(match(p, g).size(), 2);
   }
 }
 
 struct Commute : public Rewrite {
-  PatternPtr x, y;
+  Pattern *x, *y;
   Opcode opcode;
 
   Commute(Opcode opcode) : opcode(opcode) {
@@ -273,12 +273,12 @@ struct Commute : public Rewrite {
   }
 
   EClass *apply(const PatternToClassMap &m, EGraph &g) override {
-    return g.make(opcode, {m.lookup(y.get()), m.lookup(x.get())});
+    return g.make(opcode, {m.lookup(y), m.lookup(x)});
   }
 };
 
 struct Assoc : public Rewrite {
-  PatternPtr x, y, z;
+  Pattern *x, *y, *z;
   Opcode opcode;
 
   Assoc(Opcode opcode) : opcode(opcode) {
@@ -289,13 +289,13 @@ struct Assoc : public Rewrite {
   }
 
   EClass *apply(const PatternToClassMap &m, EGraph &g) override {
-    auto yz = g.make(opcode, {m.lookup(y.get()), m.lookup(z.get())});
-    return g.make(opcode, {m.lookup(x.get()), yz});
+    auto yz = g.make(opcode, {m.lookup(y), m.lookup(z)});
+    return g.make(opcode, {m.lookup(x), yz});
   }
 };
 
 struct Distribute : public Rewrite {
-  PatternPtr x, y, z;
+  Pattern *x, *y, *z;
   Opcode add, mul;
 
   Distribute(Opcode add, Opcode mul) : add(add), mul(mul) {
@@ -306,14 +306,14 @@ struct Distribute : public Rewrite {
   }
 
   EClass *apply(const PatternToClassMap &m, EGraph &g) override {
-    auto xz = g.make(mul, {m.lookup(x.get()), m.lookup(z.get())});
-    auto yz = g.make(mul, {m.lookup(y.get()), m.lookup(z.get())});
+    auto xz = g.make(mul, {m.lookup(x), m.lookup(z)});
+    auto yz = g.make(mul, {m.lookup(y), m.lookup(z)});
     return g.make(add, {xz, yz});
   }
 };
 
 struct AddZero : public Rewrite {
-  PatternPtr x;
+  Pattern *x;
   Opcode add;
 
   AddZero(Opcode add, Opcode zero) : add(add) {
@@ -322,7 +322,7 @@ struct AddZero : public Rewrite {
   }
 
   EClass *apply(const PatternToClassMap &m, EGraph &g) override {
-    return m.lookup(x.get());
+    return m.lookup(x);
   }
 };
 
