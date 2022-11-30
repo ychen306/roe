@@ -7,14 +7,8 @@
 using llvm::errs;
 
 using Arith = Language<int>;
-struct MyCommute : public LanguageRewrite<Arith> {
-  MyCommute(Arith &l) : LanguageRewrite<Arith>(l) {
-    root = match("add", var("x"), var("y"));
-  }
-  EClass *rhs(LookupFuncTy var) override {
-    return make("add", var("y"), var("x"));
-  };
-};
+
+REWRITE(Arith, ArithCommute, match("add", var("x"), var("y")), make("add", var("y"), var("x")))
 
 TEST(LanguageRewriteTest, simple) {
   EGraph g;
@@ -31,7 +25,7 @@ TEST(LanguageRewriteTest, use_commute) {
   auto *yx = arith.make("add", {arith.var("y"), arith.var("x")});
 
   std::vector<std::unique_ptr<Rewrite>> rewrites;
-  rewrites.emplace_back(new MyCommute(arith));
+  rewrites.emplace_back(new ArithCommute(arith));
   saturate(rewrites, g);
   ASSERT_EQ(g.getLeader(xy), g.getLeader(yx));
 }

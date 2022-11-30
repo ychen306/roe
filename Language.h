@@ -72,12 +72,18 @@ protected:
 
 public:
   LanguageRewrite(LanguageT &l) : l(l) {}
-  using LookupFuncTy =  std::function<EClass *(llvm::StringRef)>;
+  using LookupFuncTy = std::function<EClass *(llvm::StringRef)>;
   virtual EClass *rhs(LookupFuncTy var) = 0;
   EClass *apply(const PatternToClassMap &m, EGraph &) override {
     return rhs(
         [&](llvm::StringRef name) { return m.lookup(varMap.lookup(name)); });
   }
 };
+
+#define REWRITE(LANG, RW, LHS, RHS)                                            \
+  struct RW : public LanguageRewrite<LANG> {                                   \
+    RW(LANG &l) : LanguageRewrite<LANG>(l) { root = LHS; }                     \
+    EClass *rhs(LookupFuncTy var) override { return RHS; }                     \
+  };
 
 #endif // LANGUAGE_H
