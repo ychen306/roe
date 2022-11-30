@@ -1,6 +1,6 @@
 #include "EGraph.h"
-#include "Pattern.h"
 #include "Language.h"
+#include "Pattern.h"
 #include "gtest/gtest.h"
 
 #include "llvm/Support/raw_ostream.h"
@@ -8,7 +8,8 @@ using llvm::errs;
 
 using Arith = Language<int>;
 
-REWRITE(Arith, ArithCommute, match("add", var("x"), var("y")), make("add", var("y"), var("x")))
+REWRITE(Arith, ArithCommute, match("add", var("x"), var("y")),
+        make("add", var("y"), var("x")))
 
 TEST(LanguageRewriteTest, simple) {
   EGraph g;
@@ -29,4 +30,3 @@ TEST(LanguageRewriteTest, use_commute) {
   saturate(rewrites, g);
   ASSERT_EQ(g.getLeader(xy), g.getLeader(yx));
 }
-

@@ -2,6 +2,7 @@
 #define LANGUAGE_H
 
 #include "EGraph.h"
+#include "Pattern.h"
 #include "llvm/ADT/StringMap.h"
 
 // ValueType is the type of a constant (e.g., int)
