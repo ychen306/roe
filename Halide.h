@@ -4,7 +4,7 @@
 #include "Language.h"
 
 // Halide TRS
-class HalideTRS : Language<int> {
+class HalideTRS : public Language<int> {
 public:
   HalideTRS(EGraph &g) : Language<int>(g, {
       "+", "-", "*", "/", "%", 
