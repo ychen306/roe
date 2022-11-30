@@ -270,7 +270,7 @@ struct Commute : public Rewrite {
   Commute(Opcode opcode) : opcode(opcode) {
     x = var();
     y = var();
-    root = make(opcode, x, y);
+    root = match(opcode, x, y);
   }
 
   EClass *apply(const PatternToClassMap &m, EGraph &g) override {
@@ -286,7 +286,7 @@ struct Assoc : public Rewrite {
     x = var();
     y = var();
     z = var();
-    root = make(opcode, make(opcode, x, y), z);
+    root = match(opcode, match(opcode, x, y), z);
   }
 
   EClass *apply(const PatternToClassMap &m, EGraph &g) override {
@@ -303,7 +303,7 @@ struct Distribute : public Rewrite {
     x = var();
     y = var();
     z = var();
-    root = make(mul, make(add, x, y), z);
+    root = match(mul, match(add, x, y), z);
   }
 
   EClass *apply(const PatternToClassMap &m, EGraph &g) override {
@@ -319,7 +319,7 @@ struct AddZero : public Rewrite {
 
   AddZero(Opcode add, Opcode zero) : add(add) {
     x = var();
-    root = make(add, x, make(zero));
+    root = match(add, x, match(zero));
   }
 
   EClass *apply(const PatternToClassMap &m, EGraph &g) override {
@@ -386,14 +386,14 @@ TEST(RewriteTest, ab) {
 
 TEST(LanguageTest, variables) {
   EGraph g;
-  Language<int> l(g);
+  Language<int> l(g, {});
   ASSERT_TRUE(g.isEquivalent(l.var("x"), l.var("x")));
   ASSERT_FALSE(g.isEquivalent(l.var("x"), l.var("y")));
 }
 
 TEST(LanguageTest, opcode) {
   EGraph g;
-  Language<int> l(g);
+  Language<int> l(g, {"+", "-"});
   auto *x = l.var("x");
   auto *y = l.var("y");
   ASSERT_TRUE(g.isEquivalent(l.make("+", {x, y}), l.make("+", {x, y})));

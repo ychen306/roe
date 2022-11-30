@@ -53,7 +53,7 @@ class Rewrite {
 
 protected:
   Pattern *root;
-  template <typename... ArgTypes> Pattern *make(Opcode op, ArgTypes... args) {
+  template <typename... ArgTypes> Pattern *match(Opcode op, ArgTypes... args) {
     patternNodes.push_back(
         Pattern::make(op, {std::forward<ArgTypes>(args)...}));
     return patternNodes.back();

@@ -30,7 +30,7 @@ add_definitions(-fno-rtti -fvisibility=hidden)
 add_library(EGraph STATIC EGraph.cpp Pattern.cpp)
 
 include(GoogleTest)
-add_executable(tests tests.cpp)
+add_executable(tests tests.cpp language_tests.cpp)
 llvm_map_components_to_libnames(LLVM_LIBS support)
 target_link_libraries(tests gtest_main EGraph ${LLVM_LIBS})
 gtest_add_tests(TARGET tests)
