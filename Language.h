@@ -6,8 +6,8 @@
 #include "llvm/ADT/StringMap.h"
 
 // ValueType is the type of a constant (e.g., int)
-template <typename ValueType> class Language {
-  EGraph &g;
+template <typename ValueType, typename AnalysisT> class Language {
+  EGraph<AnalysisT> &g;
   unsigned counter;
   llvm::StringMap<unsigned> opcodeMap;
   llvm::StringMap<unsigned> varMap;
@@ -16,7 +16,9 @@ template <typename ValueType> class Language {
   unsigned newId() { return counter++; }
 
 public:
-  Language(EGraph &g, llvm::ArrayRef<std::string> opcodes) : g(g), counter(0) {
+  using AnalysisType = AnalysisT;
+  Language(EGraph<AnalysisT> &g, llvm::ArrayRef<std::string> opcodes)
+      : g(g), counter(0) {
     for (auto &op : opcodes) {
       opcodeMap[op] = newId();
     }
@@ -46,24 +48,29 @@ public:
     return g.make(it.second, {});
   }
 
-  EGraph &graph() { return g; }
+  EGraph<AnalysisT> &graph() { return g; }
 };
 
-template <typename LanguageT> class LanguageRewrite : public Rewrite {
+template <typename LanguageT>
+class LanguageRewrite : public Rewrite<typename LanguageT::AnalysisType> {
   LanguageT l;
   // mappign variable name -> pattern var
   llvm::StringMap<Pattern *> varMap;
+
+public:
+  using AnalysisType = typename LanguageT::AnalysisType;
 
 protected:
   Pattern *var(std::string name) {
     if (varMap.count(name))
       return varMap.lookup(name);
-    return varMap[name] = Rewrite::var();
+    return varMap[name] = Rewrite<AnalysisType>::var();
   }
 
   template <typename... ArgTypes>
   Pattern *match(std::string opcode, ArgTypes... args) {
-    return Rewrite::match(l.getOpcode(opcode), std::forward<ArgTypes>(args)...);
+    return Rewrite<AnalysisType>::match(l.getOpcode(opcode),
+                                        std::forward<ArgTypes>(args)...);
   }
 
   template <typename... ArgTypes>
@@ -75,7 +82,7 @@ public:
   LanguageRewrite(LanguageT &l) : l(l) {}
   using LookupFuncTy = std::function<EClass *(llvm::StringRef)>;
   virtual EClass *rhs(LookupFuncTy var) = 0;
-  EClass *apply(const PatternToClassMap &m, EGraph &) override {
+  EClass *apply(const PatternToClassMap &m, EGraph<AnalysisType> &) override {
     return rhs(
         [&](llvm::StringRef name) { return m.lookup(varMap.lookup(name)); });
   }

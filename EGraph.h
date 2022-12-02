@@ -27,8 +27,8 @@ public:
   EClass *getClass() const { return cls; }
 };
 
-class EGraph;
 class EClass {
+protected:
   // Mapping <user opcode, operand id> -> <sorted array of of user>
   llvm::DenseMap<std::pair<Opcode, unsigned>, llvm::DenseSet<ENode *>> uses;
   llvm::DenseSet<ENode *> users;
@@ -55,7 +55,14 @@ public:
   }
   llvm::DenseSet<ENode *> *getUsersByUses(Opcode opcode, unsigned operandId);
   llvm::DenseSet<ENode *> *getNodesByOpcode(Opcode opcode);
-  void repair(EGraph *);
+};
+
+template <typename AnalysisT> class EGraph;
+template <typename AnalysisT> class EClassWithAnalysis : public EClass {
+  typename AnalysisT::Data data;
+
+public:
+  void repair(EGraph<AnalysisT> *g);
 };
 
 struct NodeKey {
@@ -84,7 +91,8 @@ struct NodeHashInfo {
   }
 };
 
-class EGraph {
+class EGraphBase {
+protected:
   llvm::DenseMap<NodeKey, std::unique_ptr<ENode>, NodeHashInfo> nodes;
   llvm::EquivalenceClasses<EClass *> ec;
   std::vector<std::unique_ptr<EClass>> classes;
@@ -92,7 +100,6 @@ class EGraph {
   std::vector<EClass *> repairList;
 
   void repair(EClass *);
-  EClass *newClass();
 
   using ec_iterator = decltype(ec)::iterator;
   using class_ptr = EClass *;
@@ -130,16 +137,104 @@ public:
   class_iterator class_end() { return class_iterator(ec, ec.end()); }
 
   NodeKey canonicalize(Opcode opcode, llvm::ArrayRef<EClass *> operands);
-  EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands = llvm::None);
   EClass *getLeader(EClass *c) const { return ec.getLeaderValue(c); }
   ENode *findNode(Opcode opcode, llvm::ArrayRef<EClass *> operands);
   ENode *findNode(NodeKey);
   bool isEquivalent(EClass *c1, EClass *c2) const {
     return ec.isEquivalent(c1, c2);
   }
-  EClass *merge(EClass *c1, EClass *c2);
-  void rebuild();
   unsigned numNodes() const { return nodes.size(); }
 };
+
+struct NullAnalysis {
+  using Data = char;
+};
+
+template <typename AnalysisT = NullAnalysis> class EGraph : public EGraphBase {
+  EClass *newClass() {
+    auto *c = classes.emplace_back(new EClassWithAnalysis<AnalysisT>()).get();
+    ec.insert(c);
+    return c;
+  }
+
+public:
+  EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands = llvm::None) {
+    ENode *node = findNode(opcode, operands);
+    if (auto *c = node->getClass())
+      return c;
+    EClass *c = newClass();
+    node->setClass(c);
+    c->addNode(node);
+    for (auto item : llvm::enumerate(node->getOperands()))
+      item.value()->addUse(node, item.index());
+    return c;
+  }
+
+  EClass *merge(EClass *c1, EClass *c2) {
+    c1 = getLeader(c1);
+    c2 = getLeader(c2);
+    if (c1 == c2)
+      return c1;
+    assert(c1 != c2);
+    // Merge everything into c1
+    c1->absorb(c2);
+    auto *c = *ec.unionSets(c1, c2);
+    if (c != c1)
+      *c = std::move(*c1);
+    // See if we can merge some of `c`'s users later
+    repairList.push_back(c);
+    return c;
+  }
+
+  void rebuild() {
+    while (!repairList.empty()) {
+      std::set<EClass *> todo;
+      for (auto *c : repairList)
+        todo.insert(getLeader(c));
+      repairList.clear();
+      for (auto *c : todo)
+        static_cast<EClassWithAnalysis<AnalysisT> *>(getLeader(c))
+            ->repair(this);
+    }
+  }
+};
+
+template <typename AnalysisT>
+void EClassWithAnalysis<AnalysisT>::repair(EGraph<AnalysisT> *g) {
+  // Group users together by their canonical representation
+  llvm::DenseMap<NodeKey, std::vector<ENode *>, NodeHashInfo> uniqueUsers;
+  for (ENode *user : users) {
+    auto key = g->canonicalize(user->getOpcode(), user->getOperands());
+    uniqueUsers[key].push_back(user);
+  }
+
+  // Remember the nodes that we are replacing
+  llvm::DenseMap<ENode *, ENode *> oldToNewUserMap;
+  // Merge and remove the duplicated users
+  for (auto kv : uniqueUsers) {
+    NodeKey key = kv.first;
+    auto &nodes = kv.second;
+    if (nodes.size() <= 1)
+      continue;
+
+    ENode *node0 = nodes.front();
+    auto *c = node0->getClass();
+    assert(c);
+    ENode *user = g->findNode(key);
+
+    oldToNewUserMap.try_emplace(node0, user);
+    for (auto *node : llvm::drop_begin(nodes)) {
+      assert(node->getClass());
+      g->merge(c, node->getClass());
+      oldToNewUserMap.try_emplace(node, user);
+    }
+
+    user->setClass(c);
+    users.insert(user);
+    for (auto *operand : user->getOperands())
+      static_cast<EClassWithAnalysis<AnalysisT> *>(g->getLeader(operand))
+          ->repairUserSets(oldToNewUserMap);
+  }
+}
 
 #endif // EGRAPH_H

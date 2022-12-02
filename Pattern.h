@@ -46,8 +46,11 @@ public:
 
 using Substitution = llvm::SmallVector<std::pair<Pattern *, EClass *>, 4>;
 
-std::vector<Substitution> match(Pattern *, EGraph &);
+std::vector<Substitution> match(Pattern *, EGraphBase &);
 
+using PatternToClassMap = llvm::SmallDenseMap<Pattern *, EClass *, 4>;
+
+template<typename AnalysisT>
 class Rewrite {
   std::vector<Pattern *> patternNodes;
 
@@ -63,18 +66,34 @@ protected:
     return patternNodes.back();
   }
 
-  using PatternToClassMap = llvm::SmallDenseMap<Pattern *, EClass *, 4>;
-
   // Apply the rewrite given a matched pattern
-  virtual EClass *apply(const PatternToClassMap &, EGraph &) = 0;
+  virtual EClass *apply(const PatternToClassMap &, EGraph<AnalysisT> &) = 0;
 
 public:
-  virtual ~Rewrite();
+  virtual ~Rewrite() {}
   // The left-hand side
   Pattern *sourcePattern() const { return root; }
-  void applyMatches(llvm::ArrayRef<Substitution> matches, EGraph &);
+  void applyMatches(llvm::ArrayRef<Substitution> matches, EGraph<AnalysisT> &g) {
+    for (auto &m : matches) {
+      PatternToClassMap subst(m.begin(), m.end());
+      auto *c = apply(subst, g);
+      g.merge(c, subst.lookup(root));
+    }
+  }
 };
 
-void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite>>, EGraph &);
+template<typename AnalysisT>
+void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite<AnalysisT>>> rewrites, EGraph<AnalysisT> &g) {
+  unsigned size;
+  do {
+    size = g.numNodes();
+    std::vector<std::vector<Substitution>> matches;
+    for (auto &rw : rewrites)
+      matches.push_back(match(rw->sourcePattern(), g));
+    for (unsigned i = 0, n = rewrites.size(); i < n; i++)
+      rewrites[i]->applyMatches(matches[i], g);
+    g.rebuild();
+  } while (size != g.numNodes());
+}
 
 #endif // PATTERN_H

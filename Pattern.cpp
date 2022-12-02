@@ -18,7 +18,7 @@ Pattern::Pattern(Opcode opcode,
 namespace {
 class PatternMatcher {
   Pattern *root;
-  EGraph &g;
+  EGraphBase &g;
   std::vector<Substitution> &matches;
   llvm::SmallVector<Pattern *> patternNodes;
   using ClassOrNode = llvm::PointerUnion<EClass *, ENode *>;
@@ -31,12 +31,12 @@ class PatternMatcher {
   void outputSubstitution();
 
 public:
-  PatternMatcher(Pattern *, EGraph &g, std::vector<Substitution> &matches);
+  PatternMatcher(Pattern *, EGraphBase &g, std::vector<Substitution> &matches);
   void run();
 };
 } // namespace
 
-PatternMatcher::PatternMatcher(Pattern *pat, EGraph &g,
+PatternMatcher::PatternMatcher(Pattern *pat, EGraphBase &g,
                                std::vector<Substitution> &matches)
     : root(pat), g(g), matches(matches) {
   llvm::SmallPtrSet<Pattern *, 8> visited;
@@ -189,32 +189,9 @@ bool PatternMatcher::runOnPattern(Pattern *pat, unsigned level) {
 
 void PatternMatcher::run() { runImpl(0); }
 
-std::vector<Substitution> match(Pattern *pat, EGraph &g) {
+std::vector<Substitution> match(Pattern *pat, EGraphBase &g) {
   std::vector<Substitution> matches;
   PatternMatcher matcher(pat, g, matches);
   matcher.run();
   return matches;
-}
-
-Rewrite::~Rewrite() {}
-
-void Rewrite::applyMatches(llvm::ArrayRef<Substitution> matches, EGraph &g) {
-  for (auto &m : matches) {
-    PatternToClassMap subst(m.begin(), m.end());
-    auto *c = apply(subst, g);
-    g.merge(c, subst.lookup(root));
-  }
-}
-
-void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite>> rewrites, EGraph &g) {
-  unsigned size;
-  do {
-    size = g.numNodes();
-    std::vector<std::vector<Substitution>> matches;
-    for (auto &rw : rewrites)
-      matches.push_back(match(rw->sourcePattern(), g));
-    for (unsigned i = 0, n = rewrites.size(); i < n; i++)
-      rewrites[i]->applyMatches(matches[i], g);
-    g.rebuild();
-  } while (size != g.numNodes());
 }

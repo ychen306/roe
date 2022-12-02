@@ -6,13 +6,13 @@
 #include "llvm/Support/raw_ostream.h"
 using llvm::errs;
 
-using Arith = Language<int>;
+using Arith = Language<int, NullAnalysis>;
 
 REWRITE(Arith, ArithCommute, match("add", var("x"), var("y")),
         make("add", var("y"), var("x")))
 
 TEST(LanguageRewriteTest, simple) {
-  EGraph g;
+  EGraph<> g;
   Arith arith(g, {"add"});
   auto *xy = arith.make("add", {arith.var("x"), arith.var("y")});
   auto *yx = arith.make("add", {arith.var("y"), arith.var("x")});
@@ -20,13 +20,13 @@ TEST(LanguageRewriteTest, simple) {
 }
 
 TEST(LanguageRewriteTest, use_commute) {
-  EGraph g;
+  EGraph<> g;
   Arith arith(g, {"add"});
   auto *xy = arith.make("add", {arith.var("x"), arith.var("y")});
   auto *yx = arith.make("add", {arith.var("y"), arith.var("x")});
 
-  std::vector<std::unique_ptr<Rewrite>> rewrites;
+  std::vector<std::unique_ptr<Rewrite<NullAnalysis>>> rewrites;
   rewrites.emplace_back(new ArithCommute(arith));
-  saturate(rewrites, g);
+  saturate<NullAnalysis>(rewrites, g);
   ASSERT_EQ(g.getLeader(xy), g.getLeader(yx));
 }
