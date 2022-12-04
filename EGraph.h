@@ -10,24 +10,24 @@
 
 using Opcode = unsigned;
 
-class EClass;
+class EClassBase;
 class ENode {
   friend class ENodeHashInfo;
   Opcode opcode;
-  llvm::SmallVector<EClass *, 3> operands;
-  EClass *cls;
+  llvm::SmallVector<EClassBase *, 3> operands;
+  EClassBase *cls;
 
 public:
-  ENode(Opcode opcode, llvm::ArrayRef<EClass *> operands)
+  ENode(Opcode opcode, llvm::ArrayRef<EClassBase *> operands)
       : opcode(opcode), operands(operands.begin(), operands.end()),
         cls(nullptr) {}
-  llvm::ArrayRef<EClass *> getOperands() const { return operands; }
+  llvm::ArrayRef<EClassBase *> getOperands() const { return operands; }
   Opcode getOpcode() const { return opcode; }
-  void setClass(EClass *cls2) { cls = cls2; }
-  EClass *getClass() const { return cls; }
+  void setClass(EClassBase *cls2) { cls = cls2; }
+  EClassBase *getClass() const { return cls; }
 };
 
-class EClass {
+class EClassBase {
 protected:
   // Mapping <user opcode, operand id> -> <sorted array of of user>
   llvm::DenseMap<std::pair<Opcode, unsigned>, llvm::DenseSet<ENode *>> uses;
@@ -38,15 +38,15 @@ protected:
   void repairUserSets(const llvm::DenseMap<ENode *, ENode *> &oldToNewUserMap);
 
 public:
-  EClass() = default;
-  EClass &operator=(EClass &&) = default;
+  EClassBase() = default;
+  EClassBase &operator=(EClassBase &&) = default;
 
   void addNode(ENode *node);
-  // Record that fact that `user`'s `i`th operand is `this` EClass
+  // Record that fact that `user`'s `i`th operand is `this` EClassBase
   void addUse(ENode *user, unsigned i);
   // Aborb `other` into `this` class and empther `other`
-  void absorb(EClass *other);
-  void swap(EClass *other) {
+  void absorb(EClassBase *other);
+  void swap(EClassBase *other) {
     uses.swap(other->uses);
     opcodeToNodesMap.swap(other->opcodeToNodesMap);
   }
@@ -58,7 +58,7 @@ public:
 };
 
 template <typename AnalysisT> class EGraph;
-template <typename AnalysisT> class EClassWithAnalysis : public EClass {
+template <typename AnalysisT> class EClass : public EClassBase {
   typename AnalysisT::Data data;
 
 public:
@@ -67,7 +67,7 @@ public:
 
 struct NodeKey {
   Opcode opcode;
-  llvm::SmallVector<EClass *, 3> operands;
+  llvm::SmallVector<EClassBase *, 3> operands;
 };
 
 struct NodeHashInfo {
@@ -94,15 +94,15 @@ struct NodeHashInfo {
 class EGraphBase {
 protected:
   llvm::DenseMap<NodeKey, std::unique_ptr<ENode>, NodeHashInfo> nodes;
-  llvm::EquivalenceClasses<EClass *> ec;
-  std::vector<std::unique_ptr<EClass>> classes;
+  llvm::EquivalenceClasses<EClassBase *> ec;
+  std::vector<std::unique_ptr<EClassBase>> classes;
   // List of e-classs that require repair
-  std::vector<EClass *> repairList;
+  std::vector<EClassBase *> repairList;
 
-  void repair(EClass *);
+  void repair(EClassBase *);
 
   using ec_iterator = decltype(ec)::iterator;
-  using class_ptr = EClass *;
+  using class_ptr = EClassBase *;
 
 public:
   class class_iterator;
@@ -112,7 +112,7 @@ public:
       std::ptrdiff_t, class_ptr *, class_ptr &>;
 
   class class_iterator : public class_iterator_base {
-    llvm::EquivalenceClasses<EClass *> &ec;
+    llvm::EquivalenceClasses<EClassBase *> &ec;
 
     void skipEmptyClasses() {
       while (I != ec.end() && ec.member_begin(I) == ec.member_end())
@@ -120,7 +120,7 @@ public:
     }
 
   public:
-    class_iterator(llvm::EquivalenceClasses<EClass *> &ec, ec_iterator it)
+    class_iterator(llvm::EquivalenceClasses<EClassBase *> &ec, ec_iterator it)
         : class_iterator_base(it), ec(ec) {
       skipEmptyClasses();
     }
@@ -136,11 +136,11 @@ public:
 
   class_iterator class_end() { return class_iterator(ec, ec.end()); }
 
-  NodeKey canonicalize(Opcode opcode, llvm::ArrayRef<EClass *> operands);
-  EClass *getLeader(EClass *c) const { return ec.getLeaderValue(c); }
-  ENode *findNode(Opcode opcode, llvm::ArrayRef<EClass *> operands);
+  NodeKey canonicalize(Opcode opcode, llvm::ArrayRef<EClassBase *> operands);
+  EClassBase *getLeader(EClassBase *c) const { return ec.getLeaderValue(c); }
+  ENode *findNode(Opcode opcode, llvm::ArrayRef<EClassBase *> operands);
   ENode *findNode(NodeKey);
-  bool isEquivalent(EClass *c1, EClass *c2) const {
+  bool isEquivalent(EClassBase *c1, EClassBase *c2) const {
     return ec.isEquivalent(c1, c2);
   }
   unsigned numNodes() const { return nodes.size(); }
@@ -151,18 +151,18 @@ struct NullAnalysis {
 };
 
 template <typename AnalysisT = NullAnalysis> class EGraph : public EGraphBase {
-  EClass *newClass() {
-    auto *c = classes.emplace_back(new EClassWithAnalysis<AnalysisT>()).get();
+  EClassBase *newClass() {
+    auto *c = classes.emplace_back(new EClass<AnalysisT>()).get();
     ec.insert(c);
     return c;
   }
 
 public:
-  EClass *make(Opcode opcode, llvm::ArrayRef<EClass *> operands = llvm::None) {
+  EClassBase *make(Opcode opcode, llvm::ArrayRef<EClassBase *> operands = llvm::None) {
     ENode *node = findNode(opcode, operands);
     if (auto *c = node->getClass())
       return c;
-    EClass *c = newClass();
+    EClassBase *c = newClass();
     node->setClass(c);
     c->addNode(node);
     for (auto item : llvm::enumerate(node->getOperands()))
@@ -170,7 +170,7 @@ public:
     return c;
   }
 
-  EClass *merge(EClass *c1, EClass *c2) {
+  EClassBase *merge(EClassBase *c1, EClassBase *c2) {
     c1 = getLeader(c1);
     c2 = getLeader(c2);
     if (c1 == c2)
@@ -188,19 +188,19 @@ public:
 
   void rebuild() {
     while (!repairList.empty()) {
-      std::set<EClass *> todo;
+      std::set<EClassBase *> todo;
       for (auto *c : repairList)
         todo.insert(getLeader(c));
       repairList.clear();
       for (auto *c : todo)
-        static_cast<EClassWithAnalysis<AnalysisT> *>(getLeader(c))
+        static_cast<EClass<AnalysisT> *>(getLeader(c))
             ->repair(this);
     }
   }
 };
 
 template <typename AnalysisT>
-void EClassWithAnalysis<AnalysisT>::repair(EGraph<AnalysisT> *g) {
+void EClass<AnalysisT>::repair(EGraph<AnalysisT> *g) {
   // Group users together by their canonical representation
   llvm::DenseMap<NodeKey, std::vector<ENode *>, NodeHashInfo> uniqueUsers;
   for (ENode *user : users) {
@@ -232,7 +232,7 @@ void EClassWithAnalysis<AnalysisT>::repair(EGraph<AnalysisT> *g) {
     user->setClass(c);
     users.insert(user);
     for (auto *operand : user->getOperands())
-      static_cast<EClassWithAnalysis<AnalysisT> *>(g->getLeader(operand))
+      static_cast<EClass<AnalysisT> *>(g->getLeader(operand))
           ->repairUserSets(oldToNewUserMap);
   }
 }

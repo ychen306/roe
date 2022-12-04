@@ -44,11 +44,11 @@ public:
   }
 };
 
-using Substitution = llvm::SmallVector<std::pair<Pattern *, EClass *>, 4>;
+using Substitution = llvm::SmallVector<std::pair<Pattern *, EClassBase *>, 4>;
 
 std::vector<Substitution> match(Pattern *, EGraphBase &);
 
-using PatternToClassMap = llvm::SmallDenseMap<Pattern *, EClass *, 4>;
+using PatternToClassMap = llvm::SmallDenseMap<Pattern *, EClassBase *, 4>;
 
 template<typename AnalysisT>
 class Rewrite {
@@ -67,7 +67,7 @@ protected:
   }
 
   // Apply the rewrite given a matched pattern
-  virtual EClass *apply(const PatternToClassMap &, EGraph<AnalysisT> &) = 0;
+  virtual EClassBase *apply(const PatternToClassMap &, EGraph<AnalysisT> &) = 0;
 
 public:
   virtual ~Rewrite() {}

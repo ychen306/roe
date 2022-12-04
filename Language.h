@@ -31,19 +31,19 @@ public:
     return opcodeMap.lookup(opcode);
   }
 
-  EClass *make(std::string opcode, llvm::ArrayRef<EClass *> operands) {
+  EClassBase *make(std::string opcode, llvm::ArrayRef<EClassBase *> operands) {
     assert(opcodeMap.count(opcode));
     return Base::make(opcodeMap.lookup(opcode), operands);
   }
 
-  EClass *var(std::string var) {
+  EClassBase *var(std::string var) {
     auto [it, inserted] = varMap.try_emplace(var);
     if (inserted)
       it->setValue(newId());
     return Base::make(it->getValue(), {});
   }
 
-  EClass *constant(ValueType val) {
+  EClassBase *constant(ValueType val) {
     auto [it, inserted] = constMap.try_emplace(val);
     if (inserted) {
       it.second = newId();
@@ -76,15 +76,15 @@ protected:
   }
 
   template <typename... ArgTypes>
-  EClass *make(std::string opcode, ArgTypes... args) {
+  EClassBase *make(std::string opcode, ArgTypes... args) {
     return l.make(opcode, {std::forward<ArgTypes>(args)...});
   }
 
 public:
   LanguageRewrite(LanguageT &l) : l(l) {}
-  using LookupFuncTy = std::function<EClass *(llvm::StringRef)>;
-  virtual EClass *rhs(LookupFuncTy var) = 0;
-  EClass *apply(const PatternToClassMap &m, EGraph<AnalysisType> &) override {
+  using LookupFuncTy = std::function<EClassBase *(llvm::StringRef)>;
+  virtual EClassBase *rhs(LookupFuncTy var) = 0;
+  EClassBase *apply(const PatternToClassMap &m, EGraph<AnalysisType> &) override {
     return rhs(
         [&](llvm::StringRef name) { return m.lookup(varMap.lookup(name)); });
   }
@@ -93,7 +93,7 @@ public:
 #define REWRITE(LANG, RW, LHS, RHS)                                            \
   struct RW : public LanguageRewrite<LANG> {                                   \
     RW(LANG &l) : LanguageRewrite<LANG>(l) { root = LHS; }                     \
-    EClass *rhs(LookupFuncTy var) override { return RHS; }                     \
+    EClassBase *rhs(LookupFuncTy var) override { return RHS; }                     \
   };
 
 #endif // LANGUAGE_H

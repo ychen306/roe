@@ -126,7 +126,7 @@ TEST(MatchTest, simple) {
   ASSERT_EQ(matches.size(), 1);
 
   auto &m = matches.front();
-  llvm::DenseMap<Pattern *, EClass *> subst(m.begin(), m.end());
+  llvm::DenseMap<Pattern *, EClassBase *> subst(m.begin(), m.end());
   ASSERT_EQ(subst[px], x);
   ASSERT_EQ(subst[py], y);
 }
@@ -149,8 +149,8 @@ TEST(MatchTest, simple2) {
   auto &m0 = matches[0];
   auto &m1 = matches[1];
 
-  llvm::DenseMap<Pattern *, EClass *> subst1(m0.begin(), m0.end());
-  llvm::DenseMap<Pattern *, EClass *> subst2(m1.begin(), m1.end());
+  llvm::DenseMap<Pattern *, EClassBase *> subst1(m0.begin(), m0.end());
+  llvm::DenseMap<Pattern *, EClassBase *> subst2(m1.begin(), m1.end());
   if (subst1[px] == x) {
     ASSERT_EQ(subst1[px], x);
     ASSERT_EQ(subst1[py], y);
@@ -172,15 +172,15 @@ TEST(MatchTest, ex1) {
   int opcode_f = n + 1;
   int opcode_h = n + 2;
 
-  std::vector<EClass *> xs;
+  std::vector<EClassBase *> xs;
   for (int i = 0; i < n; i++)
     xs.push_back(g.make(i));
 
-  std::vector<EClass *> hs;
+  std::vector<EClassBase *> hs;
   for (int i = 0; i < n; i++)
     hs.push_back(g.make(opcode_h, {xs[i]}));
 
-  std::vector<EClass *> fs;
+  std::vector<EClassBase *> fs;
   for (int i = 0; i < n; i++)
     fs.push_back(g.make(opcode_f, {xs[i], hs[i]}));
 
@@ -274,7 +274,7 @@ struct Commute : public Rewrite<A> {
     this->root = this->match(opcode, x, y);
   }
 
-  EClass *apply(const PatternToClassMap &m, EGraph<A> &g) override {
+  EClassBase *apply(const PatternToClassMap &m, EGraph<A> &g) override {
     return g.make(opcode, {m.lookup(y), m.lookup(x)});
   }
 };
@@ -291,7 +291,7 @@ struct Assoc : public Rewrite<A> {
     this->root = this->match(opcode, this->match(opcode, x, y), z);
   }
 
-  EClass *apply(const PatternToClassMap &m, EGraph<A> &g) override {
+  EClassBase *apply(const PatternToClassMap &m, EGraph<A> &g) override {
     auto yz = g.make(opcode, {m.lookup(y), m.lookup(z)});
     return g.make(opcode, {m.lookup(x), yz});
   }
@@ -309,7 +309,7 @@ struct Distribute : public Rewrite<A> {
     this->root = this->match(mul, this->match(add, x, y), z);
   }
 
-  EClass *apply(const PatternToClassMap &m, EGraph<A> &g) override {
+  EClassBase *apply(const PatternToClassMap &m, EGraph<A> &g) override {
     auto xz = g.make(mul, {m.lookup(x), m.lookup(z)});
     auto yz = g.make(mul, {m.lookup(y), m.lookup(z)});
     return g.make(add, {xz, yz});

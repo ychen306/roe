@@ -28,22 +28,22 @@ void absorbMap(llvm::DenseMap<KeyType, llvm::DenseSet<ValueType>> &dst,
 
 } // namespace
 
-void EClass::addNode(ENode *node) {
+void EClassBase::addNode(ENode *node) {
   opcodeToNodesMap[node->getOpcode()].insert(node);
 }
 
-void EClass::addUse(ENode *user, unsigned i) {
+void EClassBase::addUse(ENode *user, unsigned i) {
   uses[std::make_pair(user->getOpcode(), i)].insert(user);
   users.insert(user);
 }
 
-void EClass::absorb(EClass *other) {
+void EClassBase::absorb(EClassBase *other) {
   absorbMap(opcodeToNodesMap, other->opcodeToNodesMap);
   absorbMap(uses, other->uses);
   users.insert(other->users.begin(), other->users.end());
 }
 
-llvm::DenseSet<ENode *> *EClass::getUsersByUses(Opcode opcode,
+llvm::DenseSet<ENode *> *EClassBase::getUsersByUses(Opcode opcode,
                                                 unsigned operandId) {
   auto it = uses.find({opcode, operandId});
   if (it != uses.end())
@@ -51,17 +51,17 @@ llvm::DenseSet<ENode *> *EClass::getUsersByUses(Opcode opcode,
   return nullptr;
 }
 
-llvm::DenseSet<ENode *> *EClass::getNodesByOpcode(Opcode opcode) {
+llvm::DenseSet<ENode *> *EClassBase::getNodesByOpcode(Opcode opcode) {
   auto it = opcodeToNodesMap.find(opcode);
   if (it != opcodeToNodesMap.end())
     return &it->second;
   return nullptr;
 }
 
-NodeKey EGraphBase::canonicalize(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
+NodeKey EGraphBase::canonicalize(Opcode opcode, llvm::ArrayRef<EClassBase *> operands) {
   NodeKey key;
   key.opcode = opcode;
-  for (EClass *c : operands)
+  for (EClassBase *c : operands)
     key.operands.push_back(getLeader(c));
   return key;
 }
@@ -75,11 +75,11 @@ ENode *EGraphBase::findNode(NodeKey key) {
   return it->second.get();
 }
 
-ENode *EGraphBase::findNode(Opcode opcode, llvm::ArrayRef<EClass *> operands) {
+ENode *EGraphBase::findNode(Opcode opcode, llvm::ArrayRef<EClassBase *> operands) {
   return findNode(canonicalize(opcode, operands));
 }
 
-void EClass::repairUserSets(const llvm::DenseMap<ENode *, ENode *> &oldToNewUserMap) {
+void EClassBase::repairUserSets(const llvm::DenseMap<ENode *, ENode *> &oldToNewUserMap) {
   // Fix the use index by replacing the duplicated user
   // with their new canonical user
   for (auto &kv : oldToNewUserMap) {

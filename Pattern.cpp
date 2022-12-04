@@ -21,7 +21,7 @@ class PatternMatcher {
   EGraphBase &g;
   std::vector<Substitution> &matches;
   llvm::SmallVector<Pattern *> patternNodes;
-  using ClassOrNode = llvm::PointerUnion<EClass *, ENode *>;
+  using ClassOrNode = llvm::PointerUnion<EClassBase *, ENode *>;
   llvm::ScopedHashTable<Pattern *, ClassOrNode> subst;
   using Scope = decltype(subst)::ScopeTy;
   bool runImpl(unsigned level);
@@ -54,7 +54,7 @@ void PatternMatcher::outputSubstitution() {
   auto &match = matches.emplace_back();
   for (auto *pat : patternNodes) {
     if (pat->isVar())
-      match.emplace_back(pat, subst.lookup(pat).get<EClass *>());
+      match.emplace_back(pat, subst.lookup(pat).get<EClassBase *>());
   }
   match.emplace_back(root, subst.lookup(root).get<ENode *>()->getClass());
 }
@@ -74,7 +74,7 @@ bool PatternMatcher::runImpl(unsigned level) {
 
 bool PatternMatcher::runOnVar(Pattern *var, unsigned level) {
   assert(var->isVar());
-  llvm::SmallPtrSet<EClass *, 1> candidates;
+  llvm::SmallPtrSet<EClassBase *, 1> candidates;
   // Find candidates based on bound parents (users)
   for (auto [userPat, operandId] : var->getUses()) {
     auto *user = subst.lookup(userPat).dyn_cast<ENode *>();
@@ -150,9 +150,9 @@ bool PatternMatcher::runOnPattern(Pattern *pat, unsigned level) {
     auto boundValue = subst.lookup(operandPat);
     if (boundValue.isNull())
       continue;
-    EClass *operandClass = nullptr;
+    EClassBase *operandClass = nullptr;
     if (operandPat->isVar())
-      operandClass = boundValue.get<EClass *>();
+      operandClass = boundValue.get<EClassBase *>();
     else
       operandClass = boundValue.get<ENode *>()->getClass();
     assert(operandClass);

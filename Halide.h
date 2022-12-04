@@ -25,21 +25,21 @@ public:
             "&&",
         }) {}
 
-  EClass *add(EClass *a, EClass *b) { return make("+", {a, b}); }
-  EClass *sub(EClass *a, EClass *b) { return make("-", {a, b}); }
-  EClass *mul(EClass *a, EClass *b) { return make("*", {a, b}); }
-  EClass *div(EClass *a, EClass *b) { return make("/", {a, b}); }
-  EClass *mod(EClass *a, EClass *b) { return make("%", {a, b}); }
-  EClass *max(EClass *a, EClass *b) { return make("max", {a, b}); }
-  EClass *min(EClass *a, EClass *b) { return make("min", {a, b}); }
-  EClass *lt(EClass *a, EClass *b) { return make("<", {a, b}); }
-  EClass *gt(EClass *a, EClass *b) { return make(">", {a, b}); }
-  EClass *lte(EClass *a, EClass *b) { return make("<=", {a, b}); }
-  EClass *gte(EClass *a, EClass *b) { return make(">=", {a, b}); }
-  EClass *eq(EClass *a, EClass *b) { return make("==", {a, b}); }
-  EClass *ne(EClass *a, EClass *b) { return make("!=", {a, b}); }
-  EClass *and_(EClass *a, EClass *b) { return make("&&", {a, b}); }
-  EClass *or_(EClass *a, EClass *b) { return make("||", {a, b}); }
+  EClassBase *add(EClassBase *a, EClassBase *b) { return make("+", {a, b}); }
+  EClassBase *sub(EClassBase *a, EClassBase *b) { return make("-", {a, b}); }
+  EClassBase *mul(EClassBase *a, EClassBase *b) { return make("*", {a, b}); }
+  EClassBase *div(EClassBase *a, EClassBase *b) { return make("/", {a, b}); }
+  EClassBase *mod(EClassBase *a, EClassBase *b) { return make("%", {a, b}); }
+  EClassBase *max(EClassBase *a, EClassBase *b) { return make("max", {a, b}); }
+  EClassBase *min(EClassBase *a, EClassBase *b) { return make("min", {a, b}); }
+  EClassBase *lt(EClassBase *a, EClassBase *b) { return make("<", {a, b}); }
+  EClassBase *gt(EClassBase *a, EClassBase *b) { return make(">", {a, b}); }
+  EClassBase *lte(EClassBase *a, EClassBase *b) { return make("<=", {a, b}); }
+  EClassBase *gte(EClassBase *a, EClassBase *b) { return make(">=", {a, b}); }
+  EClassBase *eq(EClassBase *a, EClassBase *b) { return make("==", {a, b}); }
+  EClassBase *ne(EClassBase *a, EClassBase *b) { return make("!=", {a, b}); }
+  EClassBase *and_(EClassBase *a, EClassBase *b) { return make("&&", {a, b}); }
+  EClassBase *or_(EClassBase *a, EClassBase *b) { return make("||", {a, b}); }
 };
 
 #endif // HALIDE_H
