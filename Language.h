@@ -6,7 +6,7 @@
 #include "llvm/ADT/StringMap.h"
 
 // ValueType is the type of a constant (e.g., int)
-template <typename ValueType, typename AnalysisT> class Language : public EGraph<AnalysisT> {
+template <typename ValueType, typename EGraphT> class Language : public EGraph<EGraphT> {
   unsigned counter;
   llvm::StringMap<unsigned> opcodeMap;
   llvm::StringMap<unsigned> varMap;
@@ -15,10 +15,9 @@ template <typename ValueType, typename AnalysisT> class Language : public EGraph
 
   unsigned newId() { return counter++; }
 
-  using Base =  EGraph<AnalysisT>;
+  using Base =  EGraph<EGraphT>;
 
 public:
-  using AnalysisType = AnalysisT;
   Language(llvm::ArrayRef<std::string> opcodes)
       : counter(0) {
     for (auto &op : opcodes) {
@@ -54,25 +53,22 @@ public:
 };
 
 template <typename LanguageT>
-class LanguageRewrite : public Rewrite<typename LanguageT::AnalysisType> {
+class LanguageRewrite : public Rewrite<LanguageT> {
   LanguageT &l;
   // mappign variable name -> pattern var
   llvm::StringMap<Pattern *> varMap;
-
-public:
-  using AnalysisType = typename LanguageT::AnalysisType;
 
 protected:
   Pattern *var(std::string name) {
     if (varMap.count(name))
       return varMap.lookup(name);
-    return varMap[name] = Rewrite<AnalysisType>::var();
+    return varMap[name] = Rewrite<LanguageT>::var();
   }
 
   template <typename... ArgTypes>
   Pattern *match(std::string opcode, ArgTypes... args) {
-    return Rewrite<AnalysisType>::match(l.getOpcode(opcode),
-                                        std::forward<ArgTypes>(args)...);
+    return Rewrite<LanguageT>::match(l.getOpcode(opcode),
+                                   std::forward<ArgTypes>(args)...);
   }
 
   template <typename... ArgTypes>
@@ -84,7 +80,7 @@ public:
   LanguageRewrite(LanguageT &l) : l(l) {}
   using LookupFuncTy = std::function<EClassBase *(llvm::StringRef)>;
   virtual EClassBase *rhs(LookupFuncTy var) = 0;
-  EClassBase *apply(const PatternToClassMap &m, EGraph<AnalysisType> &) override {
+  EClassBase *apply(const PatternToClassMap &m, LanguageT &) override {
     return rhs(
         [&](llvm::StringRef name) { return m.lookup(varMap.lookup(name)); });
   }

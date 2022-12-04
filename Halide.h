@@ -4,10 +4,11 @@
 #include "Language.h"
 
 // Halide TRS
-class HalideTRS : public Language<int, NullAnalysis> {
+class HalideTRS : public Language<int, HalideTRS> {
 public:
+  using AnalysisData =  int;
   HalideTRS()
-      : Language<int, NullAnalysis>({
+      : Language<int, HalideTRS>({
             "+",
             "-",
             "*",

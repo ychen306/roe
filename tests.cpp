@@ -7,7 +7,7 @@
 using llvm::errs;
 
 TEST(MakeTest, simple) {
-  EGraph<> g;
+  BasicEGraph g;
   auto *x = g.make(0);
   auto *y = g.make(1);
   ASSERT_NE(g.getLeader(x), g.getLeader(y));
@@ -17,12 +17,12 @@ TEST(MakeTest, simple) {
 }
 
 TEST(MakeTest, hashcons) {
-  EGraph<> g;
+  BasicEGraph g;
   ASSERT_EQ(g.make(0), g.make(0));
 }
 
 TEST(MakeTest, rebuild) {
-  EGraph<> g;
+  BasicEGraph g;
   auto *x = g.make(0);
   auto *y = g.make(1);
   auto *fx = g.make(2, {x});
@@ -38,7 +38,7 @@ TEST(MakeTest, rebuild) {
 }
 
 TEST(MakeTest, rebuild2) {
-  EGraph<> g;
+  BasicEGraph g;
   auto *x = g.make(0);
   auto *y = g.make(1);
   auto *a = g.make(2);
@@ -61,7 +61,7 @@ TEST(MakeTest, rebuild2) {
 }
 
 TEST(MakeTest, rebuild_nested) {
-  EGraph<> g;
+  BasicEGraph g;
   auto *x = g.make(0);
   auto *y = g.make(1);
   auto *a = g.make(2);
@@ -80,7 +80,7 @@ TEST(MakeTest, rebuild_nested) {
 }
 
 TEST(MakeTest, rebuild_nested2) {
-  EGraph<> g;
+  BasicEGraph g;
   auto *x = g.make(0);
   auto *y = g.make(1);
   auto *z = g.make(2);
@@ -118,7 +118,7 @@ TEST(MatchTest, simple) {
   auto py = Pattern::var();
   auto pf = Pattern::make(42, {px, py});
 
-  EGraph<> g;
+  BasicEGraph g;
   auto x = g.make(0);
   auto y = g.make(1);
   auto f = g.make(42, {x, y});
@@ -136,7 +136,7 @@ TEST(MatchTest, simple2) {
   auto py = Pattern::var();
   auto pf = Pattern::make(42, {px, py});
 
-  EGraph<> g;
+  BasicEGraph g;
   auto x = g.make(0);
   auto y = g.make(1);
   auto a = g.make(2);
@@ -166,7 +166,7 @@ TEST(MatchTest, simple2) {
 
 // Example from the relational e-matching paper
 TEST(MatchTest, ex1) {
-  EGraph<> g;
+  BasicEGraph g;
 
   int n = 100;
   int opcode_f = n + 1;
@@ -204,7 +204,7 @@ TEST(MatchTest, ex1) {
 
 // Copied from egg's unit test
 TEST(MatchTest, nonlinear) {
-  EGraph<> g;
+  BasicEGraph g;
   auto a = g.make(0);
   auto b = g.make(1);
   int zero = 2, one = 3;
@@ -263,8 +263,8 @@ TEST(MatchTest, nonlinear) {
   }
 }
 
-template<typename A>
-struct Commute : public Rewrite<A> {
+template<typename EGraphT>
+struct Commute : public Rewrite<EGraphT> {
   Pattern *x, *y;
   Opcode opcode;
 
@@ -274,13 +274,13 @@ struct Commute : public Rewrite<A> {
     this->root = this->match(opcode, x, y);
   }
 
-  EClassBase *apply(const PatternToClassMap &m, EGraph<A> &g) override {
+  EClassBase *apply(const PatternToClassMap &m, EGraphT &g) override {
     return g.make(opcode, {m.lookup(y), m.lookup(x)});
   }
 };
 
-template<typename A>
-struct Assoc : public Rewrite<A> {
+template<typename EGraphT>
+struct Assoc : public Rewrite<EGraphT> {
   Pattern *x, *y, *z;
   Opcode opcode;
 
@@ -291,14 +291,14 @@ struct Assoc : public Rewrite<A> {
     this->root = this->match(opcode, this->match(opcode, x, y), z);
   }
 
-  EClassBase *apply(const PatternToClassMap &m, EGraph<A> &g) override {
+  EClassBase *apply(const PatternToClassMap &m, EGraphT &g) override {
     auto yz = g.make(opcode, {m.lookup(y), m.lookup(z)});
     return g.make(opcode, {m.lookup(x), yz});
   }
 };
 
-template<typename A>
-struct Distribute : public Rewrite<A> {
+template<typename EGraphT>
+struct Distribute : public Rewrite<EGraphT> {
   Pattern *x, *y, *z;
   Opcode add, mul;
 
@@ -309,7 +309,7 @@ struct Distribute : public Rewrite<A> {
     this->root = this->match(mul, this->match(add, x, y), z);
   }
 
-  EClassBase *apply(const PatternToClassMap &m, EGraph<A> &g) override {
+  EClassBase *apply(const PatternToClassMap &m, EGraphT &g) override {
     auto xz = g.make(mul, {m.lookup(x), m.lookup(z)});
     auto yz = g.make(mul, {m.lookup(y), m.lookup(z)});
     return g.make(add, {xz, yz});
@@ -317,7 +317,7 @@ struct Distribute : public Rewrite<A> {
 };
 
 TEST(RewriteTest, commute) {
-  EGraph g;
+  BasicEGraph g;
   int add = 100;
   auto a = g.make(0);
   auto b = g.make(1);
@@ -325,7 +325,7 @@ TEST(RewriteTest, commute) {
   auto ba = g.make(add, {b, a});
   ASSERT_NE(g.getLeader(ab), g.getLeader(ba));
 
-  Commute<NullAnalysis> commute(add);
+  Commute<BasicEGraph> commute(add);
   auto matches = match(commute.sourcePattern(), g);
   commute.applyMatches(matches, g);
   g.rebuild();
@@ -333,7 +333,7 @@ TEST(RewriteTest, commute) {
 }
 
 TEST(RewriteTest, assoc) {
-  EGraph g;
+  BasicEGraph g;
   int add = 100;
   auto a = g.make(0);
   auto b = g.make(1);
@@ -344,7 +344,7 @@ TEST(RewriteTest, assoc) {
   auto a_bc = g.make(add, {a, bc});
   ASSERT_NE(g.getLeader(ab_c), g.getLeader(a_bc));
 
-  Assoc<NullAnalysis> assoc(add);
+  Assoc<BasicEGraph> assoc(add);
   auto matches = match(assoc.sourcePattern(), g);
   assoc.applyMatches(matches, g);
   g.rebuild();
@@ -353,13 +353,13 @@ TEST(RewriteTest, assoc) {
 
 TEST(RewriteTest, ab) {
   int add = 100, mul = 200;
-  std::vector<std::unique_ptr<Rewrite<NullAnalysis>>> rewrites;
-  rewrites.emplace_back(new Commute<NullAnalysis>(add));
-  rewrites.emplace_back(new Commute<NullAnalysis>(mul));
-  rewrites.emplace_back(new Assoc<NullAnalysis>(add));
-  rewrites.emplace_back(new Distribute<NullAnalysis>(add, mul));
+  std::vector<std::unique_ptr<Rewrite<BasicEGraph>>> rewrites;
+  rewrites.emplace_back(new Commute<BasicEGraph>(add));
+  rewrites.emplace_back(new Commute<BasicEGraph>(mul));
+  rewrites.emplace_back(new Assoc<BasicEGraph>(add));
+  rewrites.emplace_back(new Distribute<BasicEGraph>(add, mul));
 
-  EGraph<NullAnalysis> g;
+  BasicEGraph g;
   auto a = g.make(0);
   auto b = g.make(1);
   auto c = g.make(2);
@@ -369,18 +369,18 @@ TEST(RewriteTest, ab) {
   auto ab = g.make(mul, {a, c});
   auto ac_plus_ab = g.make(add, {ac, ab});
   ASSERT_NE(g.getLeader(a_bc), g.getLeader(ac_plus_ab));
-  saturate<NullAnalysis>(rewrites, g);
+  saturate<BasicEGraph>(rewrites, g);
   ASSERT_EQ(g.getLeader(a_bc), g.getLeader(ac_plus_ab));
 }
 
 TEST(LanguageTest, variables) {
-  Language<int, NullAnalysis> l({});
+  Language<int, BasicEGraph> l({});
   ASSERT_TRUE(l.isEquivalent(l.var("x"), l.var("x")));
   ASSERT_FALSE(l.isEquivalent(l.var("x"), l.var("y")));
 }
 
 TEST(LanguageTest, opcode) {
-  Language<int, NullAnalysis> l({"+", "-"});
+  Language<int, BasicEGraph> l({"+", "-"});
   auto *x = l.var("x");
   auto *y = l.var("y");
   ASSERT_TRUE(l.isEquivalent(l.make("+", {x, y}), l.make("+", {x, y})));

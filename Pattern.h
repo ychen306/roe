@@ -50,7 +50,7 @@ std::vector<Substitution> match(Pattern *, EGraphBase &);
 
 using PatternToClassMap = llvm::SmallDenseMap<Pattern *, EClassBase *, 4>;
 
-template<typename AnalysisT>
+template<typename EGraphT>
 class Rewrite {
   std::vector<Pattern *> patternNodes;
 
@@ -67,13 +67,13 @@ protected:
   }
 
   // Apply the rewrite given a matched pattern
-  virtual EClassBase *apply(const PatternToClassMap &, EGraph<AnalysisT> &) = 0;
+  virtual EClassBase *apply(const PatternToClassMap &, EGraphT &) = 0;
 
 public:
   virtual ~Rewrite() {}
   // The left-hand side
   Pattern *sourcePattern() const { return root; }
-  void applyMatches(llvm::ArrayRef<Substitution> matches, EGraph<AnalysisT> &g) {
+  void applyMatches(llvm::ArrayRef<Substitution> matches, EGraphT &g) {
     for (auto &m : matches) {
       PatternToClassMap subst(m.begin(), m.end());
       auto *c = apply(subst, g);
@@ -82,8 +82,8 @@ public:
   }
 };
 
-template<typename AnalysisT>
-void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite<AnalysisT>>> rewrites, EGraph<AnalysisT> &g) {
+template<typename EGraphT>
+void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite<EGraphT>>> rewrites, EGraphT &g) {
   unsigned size;
   do {
     size = g.numNodes();

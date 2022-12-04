@@ -57,12 +57,12 @@ public:
   llvm::DenseSet<ENode *> *getNodesByOpcode(Opcode opcode);
 };
 
-template <typename AnalysisT> class EGraph;
-template <typename AnalysisT> class EClass : public EClassBase {
-  typename AnalysisT::Data data;
+template<typename EGraphT> class EGraph;
+template <typename EGraphT> class EClass : public EClassBase {
+  typename EGraphT::AnalysisData data;
 
 public:
-  void repair(EGraph<AnalysisT> *g);
+  void repair(EGraph<EGraphT> *g);
 };
 
 struct NodeKey {
@@ -98,8 +98,6 @@ protected:
   std::vector<std::unique_ptr<EClassBase>> classes;
   // List of e-classs that require repair
   std::vector<EClassBase *> repairList;
-
-  void repair(EClassBase *);
 
   using ec_iterator = decltype(ec)::iterator;
   using class_ptr = EClassBase *;
@@ -146,13 +144,9 @@ public:
   unsigned numNodes() const { return nodes.size(); }
 };
 
-struct NullAnalysis {
-  using Data = char;
-};
-
-template <typename AnalysisT = NullAnalysis> class EGraph : public EGraphBase {
+template <typename EGraphT> class EGraph : public EGraphBase {
   EClassBase *newClass() {
-    auto *c = classes.emplace_back(new EClass<AnalysisT>()).get();
+    auto *c = classes.emplace_back(new EClass<EGraphT>()).get();
     ec.insert(c);
     return c;
   }
@@ -193,14 +187,14 @@ public:
         todo.insert(getLeader(c));
       repairList.clear();
       for (auto *c : todo)
-        static_cast<EClass<AnalysisT> *>(getLeader(c))
+        static_cast<EClass<EGraphT> *>(getLeader(c))
             ->repair(this);
     }
   }
 };
 
-template <typename AnalysisT>
-void EClass<AnalysisT>::repair(EGraph<AnalysisT> *g) {
+template <typename EGraphT>
+void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
   // Group users together by their canonical representation
   llvm::DenseMap<NodeKey, std::vector<ENode *>, NodeHashInfo> uniqueUsers;
   for (ENode *user : users) {
@@ -232,9 +226,14 @@ void EClass<AnalysisT>::repair(EGraph<AnalysisT> *g) {
     user->setClass(c);
     users.insert(user);
     for (auto *operand : user->getOperands())
-      static_cast<EClass<AnalysisT> *>(g->getLeader(operand))
+      static_cast<EClass<EGraphT> *>(g->getLeader(operand))
           ->repairUserSets(oldToNewUserMap);
   }
 }
+
+// EGraph without analysis
+struct BasicEGraph : public EGraph<BasicEGraph> {
+  using AnalysisData = char;
+};
 
 #endif // EGRAPH_H
