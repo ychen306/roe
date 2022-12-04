@@ -59,6 +59,7 @@ public:
 
 template<typename EGraphT> class EGraph;
 template <typename EGraphT> class EClass : public EClassBase {
+  friend class EGraph<EGraphT>;
   typename EGraphT::AnalysisData data;
 
 public:
@@ -157,6 +158,8 @@ public:
     if (auto *c = node->getClass())
       return c;
     EClassBase *c = newClass();
+    auto data = static_cast<EGraphT *>(this)->analyze(node);
+    static_cast<EClass<EGraphT> *>(c)->data = data;
     node->setClass(c);
     c->addNode(node);
     for (auto item : llvm::enumerate(node->getOperands()))
@@ -234,6 +237,9 @@ void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
 // EGraph without analysis
 struct BasicEGraph : public EGraph<BasicEGraph> {
   using AnalysisData = char;
+
+  // Null analysis
+  AnalysisData analyze(ENode *) { return 0; }
 };
 
 #endif // EGRAPH_H

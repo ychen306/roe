@@ -9,6 +9,7 @@ using llvm::errs;
 struct Arith : public Language<int, Arith> {
   using AnalysisData = int; 
   Arith() : Language<int, Arith>({ "add" }) {}
+  AnalysisData analyze(ENode *) { return 0; }
 };
 
 REWRITE(Arith, ArithCommute, match("add", var("x"), var("y")),

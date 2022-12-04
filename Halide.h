@@ -41,6 +41,10 @@ public:
   EClassBase *ne(EClassBase *a, EClassBase *b) { return make("!=", {a, b}); }
   EClassBase *and_(EClassBase *a, EClassBase *b) { return make("&&", {a, b}); }
   EClassBase *or_(EClassBase *a, EClassBase *b) { return make("||", {a, b}); }
+
+  // e-class analysis
+  // TODO: implement this
+  AnalysisData analyze(ENode *) { return 0; }
 };
 
 #endif // HALIDE_H
