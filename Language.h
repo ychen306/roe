@@ -11,6 +11,7 @@ template <typename ValueType, typename AnalysisT> class Language : public EGraph
   llvm::StringMap<unsigned> opcodeMap;
   llvm::StringMap<unsigned> varMap;
   llvm::DenseMap<ValueType, unsigned> constMap;
+  llvm::DenseMap<unsigned, ValueType> invConstMap;
 
   unsigned newId() { return counter++; }
 
@@ -43,9 +44,11 @@ public:
   }
 
   EClass *constant(ValueType val) {
-    auto [it, inserted] = varMap.try_emplace(val);
-    if (inserted)
+    auto [it, inserted] = constMap.try_emplace(val);
+    if (inserted) {
       it.second = newId();
+      invConstMap[val] = it.second;
+    }
     return Base::make(it.second, {});
   }
 };
