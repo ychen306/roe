@@ -374,17 +374,15 @@ TEST(RewriteTest, ab) {
 }
 
 TEST(LanguageTest, variables) {
-  EGraph<> g;
-  Language<int, NullAnalysis> l(g, {});
-  ASSERT_TRUE(g.isEquivalent(l.var("x"), l.var("x")));
-  ASSERT_FALSE(g.isEquivalent(l.var("x"), l.var("y")));
+  Language<int, NullAnalysis> l({});
+  ASSERT_TRUE(l.isEquivalent(l.var("x"), l.var("x")));
+  ASSERT_FALSE(l.isEquivalent(l.var("x"), l.var("y")));
 }
 
 TEST(LanguageTest, opcode) {
-  EGraph<> g;
-  Language<int, NullAnalysis> l(g, {"+", "-"});
+  Language<int, NullAnalysis> l({"+", "-"});
   auto *x = l.var("x");
   auto *y = l.var("y");
-  ASSERT_TRUE(g.isEquivalent(l.make("+", {x, y}), l.make("+", {x, y})));
-  ASSERT_FALSE(g.isEquivalent(l.make("+", {x, y}), l.make("-", {x, y})));
+  ASSERT_TRUE(l.isEquivalent(l.make("+", {x, y}), l.make("+", {x, y})));
+  ASSERT_FALSE(l.isEquivalent(l.make("+", {x, y}), l.make("-", {x, y})));
 }

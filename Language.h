@@ -6,8 +6,7 @@
 #include "llvm/ADT/StringMap.h"
 
 // ValueType is the type of a constant (e.g., int)
-template <typename ValueType, typename AnalysisT> class Language {
-  EGraph<AnalysisT> &g;
+template <typename ValueType, typename AnalysisT> class Language : public EGraph<AnalysisT> {
   unsigned counter;
   llvm::StringMap<unsigned> opcodeMap;
   llvm::StringMap<unsigned> varMap;
@@ -15,10 +14,12 @@ template <typename ValueType, typename AnalysisT> class Language {
 
   unsigned newId() { return counter++; }
 
+  using Base =  EGraph<AnalysisT>;
+
 public:
   using AnalysisType = AnalysisT;
-  Language(EGraph<AnalysisT> &g, llvm::ArrayRef<std::string> opcodes)
-      : g(g), counter(0) {
+  Language(llvm::ArrayRef<std::string> opcodes)
+      : counter(0) {
     for (auto &op : opcodes) {
       opcodeMap[op] = newId();
     }
@@ -31,29 +32,27 @@ public:
 
   EClass *make(std::string opcode, llvm::ArrayRef<EClass *> operands) {
     assert(opcodeMap.count(opcode));
-    return g.make(opcodeMap.lookup(opcode), operands);
+    return Base::make(opcodeMap.lookup(opcode), operands);
   }
 
   EClass *var(std::string var) {
     auto [it, inserted] = varMap.try_emplace(var);
     if (inserted)
       it->setValue(newId());
-    return g.make(it->getValue(), {});
+    return Base::make(it->getValue(), {});
   }
 
   EClass *constant(ValueType val) {
     auto [it, inserted] = varMap.try_emplace(val);
     if (inserted)
       it.second = newId();
-    return g.make(it.second, {});
+    return Base::make(it.second, {});
   }
-
-  EGraph<AnalysisT> &graph() { return g; }
 };
 
 template <typename LanguageT>
 class LanguageRewrite : public Rewrite<typename LanguageT::AnalysisType> {
-  LanguageT l;
+  LanguageT &l;
   // mappign variable name -> pattern var
   llvm::StringMap<Pattern *> varMap;
 

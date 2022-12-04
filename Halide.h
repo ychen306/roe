@@ -6,24 +6,24 @@
 // Halide TRS
 class HalideTRS : public Language<int, NullAnalysis> {
 public:
-  HalideTRS(EGraph<NullAnalysis> &g)
-      : Language<int, NullAnalysis>(g, {
-                                           "+",
-                                           "-",
-                                           "*",
-                                           "/",
-                                           "%",
-                                           "max",
-                                           "min",
-                                           "<",
-                                           ">",
-                                           "<=",
-                                           ">=",
-                                           "==",
-                                           "!=",
-                                           "||",
-                                           "&&",
-                                       }) {}
+  HalideTRS()
+      : Language<int, NullAnalysis>({
+            "+",
+            "-",
+            "*",
+            "/",
+            "%",
+            "max",
+            "min",
+            "<",
+            ">",
+            "<=",
+            ">=",
+            "==",
+            "!=",
+            "||",
+            "&&",
+        }) {}
 
   EClass *add(EClass *a, EClass *b) { return make("+", {a, b}); }
   EClass *sub(EClass *a, EClass *b) { return make("-", {a, b}); }
