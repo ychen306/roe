@@ -100,4 +100,7 @@ public:
   }
 };
 
+REWRITE(HalideTRS, HAssoc, match("+", match("+", var("x"), var("y")), var("z")),
+        make("+", var("x"), make("+", var("y"), var("z"))))
+
 #endif // HALIDE_H
