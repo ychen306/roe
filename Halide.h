@@ -2,11 +2,12 @@
 #define HALIDE_H
 
 #include "Language.h"
+#include <optional>
 
 // Halide TRS
 class HalideTRS : public Language<int, HalideTRS> {
 public:
-  using AnalysisData =  int;
+  using AnalysisData = std::optional<int>;
   HalideTRS()
       : Language<int, HalideTRS>({
             "+",
@@ -43,8 +44,60 @@ public:
   EClassBase *or_(EClassBase *a, EClassBase *b) { return make("||", {a, b}); }
 
   // e-class analysis
-  // TODO: implement this
-  AnalysisData analyze(ENode *) { return 0; }
+  AnalysisData analyze(ENode *node) {
+    auto opcode = node->getOpcode();
+    int x;
+    if (is_constant(opcode, x))
+      return x;
+
+    auto operands = node->getOperands();
+    if (operands.size() != 2)
+      return std::nullopt;
+
+    auto a = getData(operands[0]);
+    auto b = getData(operands[1]);
+    if (!a || !b)
+      return std::nullopt;
+
+    if (opcode == getOpcode("+"))
+      return *a + *b;
+    if (opcode == getOpcode("-"))
+      return *a - *b;
+    if (opcode == getOpcode("*"))
+      return *a * *b;
+    if (opcode == getOpcode("/") && *b != 0)
+      return *a / *b;
+    if (opcode == getOpcode("%") && *b != 0)
+      return *a % *b;
+    if (opcode == getOpcode("max"))
+      return *a > *b ? *a : *b;
+    if (opcode == getOpcode("min"))
+      return *a > *b ? *a : *b;
+    if (opcode == getOpcode("<"))
+      return *a < *b;
+    if (opcode == getOpcode(">"))
+      return *a > *b;
+    if (opcode == getOpcode("<="))
+      return *a <= *b;
+    if (opcode == getOpcode(">="))
+      return *a >= *b;
+    if (opcode == getOpcode("=="))
+      return *a == *b;
+    if (opcode == getOpcode("!="))
+      return *a != *b;
+    if (opcode == getOpcode("&&"))
+      return *a && *b;
+    if (opcode == getOpcode("||"))
+      return *a || *b;
+    return std::nullopt;
+  }
+
+  AnalysisData join(AnalysisData a, AnalysisData b) { return a ? a : b; }
+
+  void modify(EClassBase *c) {
+    if (auto x = getData(c))
+      merge(c, constant(*x));
+  }
 };
 
 #endif // HALIDE_H

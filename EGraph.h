@@ -57,7 +57,7 @@ public:
   llvm::DenseSet<ENode *> *getNodesByOpcode(Opcode opcode);
 };
 
-template<typename EGraphT> class EGraph;
+template <typename EGraphT> class EGraph;
 template <typename EGraphT> class EClass : public EClassBase {
   friend class EGraph<EGraphT>;
   typename EGraphT::AnalysisData data;
@@ -152,14 +152,26 @@ template <typename EGraphT> class EGraph : public EGraphBase {
     return c;
   }
 
+protected:
+  template <typename T> void setData(EClassBase *c, T data) {
+    static_cast<EClass<EGraphT> *>(c)->data = data;
+  }
+
+  auto getData(EClassBase *c) {
+    return static_cast<EClass<EGraphT> *>(c)->data;
+  }
+
+  EGraphT *analysis() { return static_cast<EGraphT *>(this); }
+
 public:
-  EClassBase *make(Opcode opcode, llvm::ArrayRef<EClassBase *> operands = llvm::None) {
+  EClassBase *make(Opcode opcode,
+                   llvm::ArrayRef<EClassBase *> operands = llvm::None) {
     ENode *node = findNode(opcode, operands);
     if (auto *c = node->getClass())
       return c;
     EClassBase *c = newClass();
-    auto data = static_cast<EGraphT *>(this)->analyze(node);
-    static_cast<EClass<EGraphT> *>(c)->data = data;
+    setData(c, analysis()->analyze(node));
+    analysis()->modify(c);
     node->setClass(c);
     c->addNode(node);
     for (auto item : llvm::enumerate(node->getOperands()))
@@ -173,6 +185,8 @@ public:
     if (c1 == c2)
       return c1;
     assert(c1 != c2);
+    // Join the analysis lattice
+    auto newData = analysis()->join(getData(c1), getData(c2));
     // Merge everything into c1
     c1->absorb(c2);
     auto *c = *ec.unionSets(c1, c2);
@@ -180,6 +194,8 @@ public:
       *c = std::move(*c1);
     // See if we can merge some of `c`'s users later
     repairList.push_back(c);
+    // Update the joined analysis result
+    setData(c, newData);
     return c;
   }
 
@@ -189,15 +205,25 @@ public:
       for (auto *c : repairList)
         todo.insert(getLeader(c));
       repairList.clear();
-      for (auto *c : todo)
-        static_cast<EClass<EGraphT> *>(getLeader(c))
-            ->repair(this);
+      for (auto *c : todo) {
+        static_cast<EClass<EGraphT> *>(getLeader(c))->repair(this);
+
+        analysis()->modify(c);
+        for (ENode *user : c->getUsers()) {
+          auto *userClass = user->getClass();
+          auto oldData = getData(userClass);
+          auto newData = analysis()->join(oldData, analysis()->analyze(user));
+          if (newData != oldData) {
+            setData(userClass, newData);
+            repairList.push_back(userClass);
+          }
+        }
+      }
     }
   }
 };
 
-template <typename EGraphT>
-void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
+template <typename EGraphT> void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
   // Group users together by their canonical representation
   llvm::DenseMap<NodeKey, std::vector<ENode *>, NodeHashInfo> uniqueUsers;
   for (ENode *user : users) {
@@ -234,12 +260,14 @@ void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
   }
 }
 
-// EGraph without analysis
-struct BasicEGraph : public EGraph<BasicEGraph> {
+struct NullAnalysis {
   using AnalysisData = char;
-
-  // Null analysis
   AnalysisData analyze(ENode *) { return 0; }
+  AnalysisData join(AnalysisData, AnalysisData) { return 0; }
+  void modify(EClassBase *) {}
 };
+
+// EGraph without analysis
+struct BasicEGraph : public EGraph<BasicEGraph>, NullAnalysis {};
 
 #endif // EGRAPH_H

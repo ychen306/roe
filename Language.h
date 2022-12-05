@@ -6,7 +6,8 @@
 #include "llvm/ADT/StringMap.h"
 
 // ValueType is the type of a constant (e.g., int)
-template <typename ValueType, typename EGraphT> class Language : public EGraph<EGraphT> {
+template <typename ValueType, typename EGraphT>
+class Language : public EGraph<EGraphT> {
   unsigned counter;
   llvm::StringMap<unsigned> opcodeMap;
   llvm::StringMap<unsigned> varMap;
@@ -15,11 +16,10 @@ template <typename ValueType, typename EGraphT> class Language : public EGraph<E
 
   unsigned newId() { return counter++; }
 
-  using Base =  EGraph<EGraphT>;
+  using Base = EGraph<EGraphT>;
 
 public:
-  Language(llvm::ArrayRef<std::string> opcodes)
-      : counter(0) {
+  Language(llvm::ArrayRef<std::string> opcodes) : counter(0) {
     for (auto &op : opcodes) {
       opcodeMap[op] = newId();
     }
@@ -45,10 +45,19 @@ public:
   EClassBase *constant(ValueType val) {
     auto [it, inserted] = constMap.try_emplace(val);
     if (inserted) {
-      it.second = newId();
-      invConstMap[val] = it.second;
+      it->second = newId();
+      invConstMap[val] = it->second;
     }
-    return Base::make(it.second, {});
+    return Base::make(it->second, {});
+  }
+
+  bool is_constant(unsigned id, ValueType &val) {
+    auto it = constMap.find(id);
+    if (it != constMap.end()) {
+      val = it->second;
+      return true;
+    }
+    return false;
   }
 };
 
@@ -68,7 +77,7 @@ protected:
   template <typename... ArgTypes>
   Pattern *match(std::string opcode, ArgTypes... args) {
     return Rewrite<LanguageT>::match(l.getOpcode(opcode),
-                                   std::forward<ArgTypes>(args)...);
+                                     std::forward<ArgTypes>(args)...);
   }
 
   template <typename... ArgTypes>
@@ -89,7 +98,7 @@ public:
 #define REWRITE(LANG, RW, LHS, RHS)                                            \
   struct RW : public LanguageRewrite<LANG> {                                   \
     RW(LANG &l) : LanguageRewrite<LANG>(l) { root = LHS; }                     \
-    EClassBase *rhs(LookupFuncTy var) override { return RHS; }                     \
+    EClassBase *rhs(LookupFuncTy var) override { return RHS; }                 \
   };
 
 #endif // LANGUAGE_H
