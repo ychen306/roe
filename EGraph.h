@@ -31,6 +31,7 @@ class EClassBase {
   EClassBase *leader;
   // For union by rank
   unsigned rank;
+
 protected:
   // Mapping <user opcode, operand id> -> <sorted array of of user>
   llvm::DenseMap<std::pair<Opcode, unsigned>, llvm::DenseSet<ENode *>> uses;
@@ -44,11 +45,11 @@ public:
   EClassBase() : rank(0), leader(this) {}
   EClassBase &operator=(EClassBase &&) = default;
 
-  bool isLeader() const { return leader == this; } 
+  bool isLeader() const { return leader == this; }
 
   unsigned getRank() const { return rank; }
 
-  EClassBase *getLeader() { 
+  EClassBase *getLeader() {
     if (isLeader() || leader->isLeader())
       return leader;
     // Path compression
@@ -119,10 +120,10 @@ protected:
 
 public:
   class class_iterator;
-  using class_iterator_base = llvm::iterator_adaptor_base<
-      class_iterator, ec_iterator,
-      std::forward_iterator_tag, class_ptr,
-      std::ptrdiff_t, class_ptr *, class_ptr &>;
+  using class_iterator_base =
+      llvm::iterator_adaptor_base<class_iterator, ec_iterator,
+                                  std::forward_iterator_tag, class_ptr,
+                                  std::ptrdiff_t, class_ptr *, class_ptr &>;
 
   class class_iterator : public class_iterator_base {
     std::vector<std::unique_ptr<EClassBase>> &classes;
@@ -133,7 +134,8 @@ public:
     }
 
   public:
-    class_iterator(std::vector<std::unique_ptr<EClassBase>> &classes, ec_iterator it)
+    class_iterator(std::vector<std::unique_ptr<EClassBase>> &classes,
+                   ec_iterator it)
         : class_iterator_base(it), classes(classes) {
       skipEmptyClasses();
     }
@@ -145,7 +147,9 @@ public:
     }
   };
 
-  class_iterator class_begin() { return class_iterator(classes, classes.begin()); }
+  class_iterator class_begin() {
+    return class_iterator(classes, classes.begin());
+  }
 
   class_iterator class_end() { return class_iterator(classes, classes.end()); }
 
