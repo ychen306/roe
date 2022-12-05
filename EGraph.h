@@ -4,7 +4,6 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/EquivalenceClasses.h"
 #include "llvm/ADT/SmallVector.h"
 
 #include <vector>
@@ -29,6 +28,9 @@ public:
 };
 
 class EClassBase {
+  EClassBase *leader;
+  // For union by rank
+  unsigned rank;
 protected:
   // Mapping <user opcode, operand id> -> <sorted array of of user>
   llvm::DenseMap<std::pair<Opcode, unsigned>, llvm::DenseSet<ENode *>> uses;
@@ -39,8 +41,20 @@ protected:
   void repairUserSets(const llvm::DenseMap<ENode *, ENode *> &oldToNewUserMap);
 
 public:
-  EClassBase() = default;
+  EClassBase() : rank(0), leader(this) {}
   EClassBase &operator=(EClassBase &&) = default;
+
+  bool isLeader() const { return leader == this; } 
+
+  unsigned getRank() const { return rank; }
+
+  EClassBase *getLeader() { 
+    if (isLeader() || leader->isLeader())
+      return leader;
+    // Path compression
+    leader = leader->getLeader();
+    return leader;
+  }
 
   void addNode(ENode *node);
   // Record that fact that `user`'s `i`th operand is `this` EClassBase
@@ -96,35 +110,34 @@ struct NodeHashInfo {
 class EGraphBase {
 protected:
   llvm::DenseMap<NodeKey, std::unique_ptr<ENode>, NodeHashInfo> nodes;
-  llvm::EquivalenceClasses<EClassBase *> ec;
   std::vector<std::unique_ptr<EClassBase>> classes;
   // List of e-classs that require repair
   std::vector<EClassBase *> repairList;
 
-  using ec_iterator = decltype(ec)::iterator;
+  using ec_iterator = decltype(classes)::iterator;
   using class_ptr = EClassBase *;
 
 public:
   class class_iterator;
   using class_iterator_base = llvm::iterator_adaptor_base<
       class_iterator, ec_iterator,
-      typename std::iterator_traits<ec_iterator>::iterator_category, class_ptr,
+      std::forward_iterator_tag, class_ptr,
       std::ptrdiff_t, class_ptr *, class_ptr &>;
 
   class class_iterator : public class_iterator_base {
-    llvm::EquivalenceClasses<EClassBase *> &ec;
+    std::vector<std::unique_ptr<EClassBase>> &classes;
 
     void skipEmptyClasses() {
-      while (I != ec.end() && ec.member_begin(I) == ec.member_end())
+      while (I != classes.end() && !(*I)->isLeader())
         ++I;
     }
 
   public:
-    class_iterator(llvm::EquivalenceClasses<EClassBase *> &ec, ec_iterator it)
-        : class_iterator_base(it), ec(ec) {
+    class_iterator(std::vector<std::unique_ptr<EClassBase>> &classes, ec_iterator it)
+        : class_iterator_base(it), classes(classes) {
       skipEmptyClasses();
     }
-    class_ptr operator*() const { return *ec.member_begin(I); }
+    class_ptr operator*() const { return I->get(); }
     class_iterator &operator++() {
       ++I;
       skipEmptyClasses();
@@ -132,25 +145,23 @@ public:
     }
   };
 
-  class_iterator class_begin() { return class_iterator(ec, ec.begin()); }
+  class_iterator class_begin() { return class_iterator(classes, classes.begin()); }
 
-  class_iterator class_end() { return class_iterator(ec, ec.end()); }
+  class_iterator class_end() { return class_iterator(classes, classes.end()); }
 
   NodeKey canonicalize(Opcode opcode, llvm::ArrayRef<EClassBase *> operands);
-  EClassBase *getLeader(EClassBase *c) const { return ec.getLeaderValue(c); }
+  EClassBase *getLeader(EClassBase *c) const { return c->getLeader(); }
   ENode *findNode(Opcode opcode, llvm::ArrayRef<EClassBase *> operands);
   ENode *findNode(NodeKey);
   bool isEquivalent(EClassBase *c1, EClassBase *c2) const {
-    return ec.isEquivalent(c1, c2);
+    return getLeader(c1) == getLeader(c2);
   }
   unsigned numNodes() const { return nodes.size(); }
 };
 
 template <typename EGraphT> class EGraph : public EGraphBase {
   EClassBase *newClass() {
-    auto *c = classes.emplace_back(new EClass<EGraphT>()).get();
-    ec.insert(c);
-    return c;
+    return classes.emplace_back(new EClass<EGraphT>()).get();
   }
 
 protected:
@@ -181,6 +192,8 @@ public:
     setData(c, analysis()->analyze(node));
     analysis()->modify(c);
 
+    assert(c->isLeader());
+    assert(getLeader(c) == c);
     return c;
   }
 
@@ -189,24 +202,28 @@ public:
     c2 = getLeader(c2);
     if (c1 == c2)
       return c1;
+
+    assert(c1->isLeader() && c2->isLeader());
+
+    if (c1->getRank() < c2->getRank()) {
+      std::swap(c1, c2);
+    }
+
     assert(c1 != c2);
     // Join the analysis lattice
     auto newData = analysis()->join(getData(c1), getData(c2));
     // Merge everything into c1
     c1->absorb(c2);
-    auto *c = *ec.unionSets(c1, c2);
-    if (c != c1)
-      *c = std::move(*c1);
     // See if we can merge some of `c`'s users later
-    repairList.push_back(c);
+    repairList.push_back(c1);
     // Update the joined analysis result
-    setData(c, newData);
-    return c;
+    setData(c1, newData);
+    return c1;
   }
 
   void rebuild() {
     while (!repairList.empty()) {
-      std::set<EClassBase *> todo;
+      llvm::DenseSet<EClassBase *> todo;
       for (auto *c : repairList)
         todo.insert(getLeader(c));
       repairList.clear();

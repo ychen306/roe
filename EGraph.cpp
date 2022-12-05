@@ -41,6 +41,10 @@ void EClassBase::absorb(EClassBase *other) {
   absorbMap(opcodeToNodesMap, other->opcodeToNodesMap);
   absorbMap(uses, other->uses);
   users.insert(other->users.begin(), other->users.end());
+  other->leader = this;
+  if (rank == other->rank)
+    rank++;
+  assert(other->getLeader() == this);
 }
 
 llvm::DenseSet<ENode *> *EClassBase::getUsersByUses(Opcode opcode,

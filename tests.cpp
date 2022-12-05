@@ -16,6 +16,36 @@ TEST(MakeTest, simple) {
   ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 1);
 }
 
+TEST(MakeTest, unionfind) {
+  BasicEGraph g;
+  for (unsigned i = 0; i < 10; i++)
+    g.make(i);
+  g.merge(g.make(0), g.make(1));
+  g.merge(g.make(0), g.make(2));
+  g.merge(g.make(0), g.make(3));
+
+  g.merge(g.make(6), g.make(7));
+  g.merge(g.make(6), g.make(8));
+  g.merge(g.make(6), g.make(9));
+
+  auto *x0 = g.make(0);
+  auto *x4 = g.make(4);
+  auto *x5 = g.make(5);
+  auto *x6 = g.make(6);
+
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x0), g.make(0)));
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x0), g.make(1)));
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x0), g.make(2)));
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x0), g.make(3)));
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x0), g.make(3)));
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x4), g.make(4)));
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x5), g.make(5)));
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x6), g.make(6)));
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x6), g.make(7)));
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x6), g.make(8)));
+  ASSERT_TRUE(g.isEquivalent(g.getLeader(x6), g.make(9)));
+}
+
 TEST(MakeTest, hashcons) {
   BasicEGraph g;
   ASSERT_EQ(g.make(0), g.make(0));
