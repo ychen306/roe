@@ -2,16 +2,16 @@
 #include "gtest/gtest.h"
 
 TEST(HalideTest, simple) {
-  HalideTRS halide;
+  HalideTRS h;
 
-  auto *t1 = halide.add(halide.var("x"), halide.var("y"));
-  auto *t2 = halide.add(halide.var("x"), halide.var("y"));
+  auto *t1 = h.add(h.var("x"), h.var("y"));
+  auto *t2 = h.add(h.var("x"), h.var("y"));
   ASSERT_EQ(t1, t2);
 }
 
 TEST(HalideTest, one_plus_one) {
-  HalideTRS halide;
+  HalideTRS h;
 
-  auto *t = halide.add(halide.constant(1), halide.constant(1));
-  ASSERT_TRUE(halide.isEquivalent(t, halide.constant(2)));
+  ASSERT_TRUE(
+      h.isEquivalent(h.add(h.constant(1), h.constant(1)), h.constant(2)));
 }
