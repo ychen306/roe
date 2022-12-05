@@ -6,6 +6,7 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/EquivalenceClasses.h"
 #include "llvm/ADT/SmallVector.h"
+
 #include <vector>
 
 using Opcode = unsigned;
@@ -169,13 +170,17 @@ public:
     ENode *node = findNode(opcode, operands);
     if (auto *c = node->getClass())
       return c;
+
     EClassBase *c = newClass();
-    setData(c, analysis()->analyze(node));
-    analysis()->modify(c);
     node->setClass(c);
     c->addNode(node);
     for (auto item : llvm::enumerate(node->getOperands()))
       item.value()->addUse(node, item.index());
+
+    // Run analysis on the new node
+    setData(c, analysis()->analyze(node));
+    analysis()->modify(c);
+
     return c;
   }
 

@@ -46,14 +46,14 @@ public:
     auto [it, inserted] = constMap.try_emplace(val);
     if (inserted) {
       it->second = newId();
-      invConstMap[val] = it->second;
+      invConstMap[it->second] = val;
     }
     return Base::make(it->second, {});
   }
 
   bool is_constant(unsigned id, ValueType &val) {
-    auto it = constMap.find(id);
-    if (it != constMap.end()) {
+    auto it = invConstMap.find(id);
+    if (it != invConstMap.end()) {
       val = it->second;
       return true;
     }
