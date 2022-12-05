@@ -12,6 +12,7 @@ TEST(HalideTest, simple) {
 TEST(HalideTest, one_plus_one) {
   HalideTRS h;
 
-  ASSERT_TRUE(
-      h.isEquivalent(h.add(h.constant(1), h.constant(1)), h.constant(2)));
+  auto *t1 = h.add(h.constant(1), h.constant(1));
+  auto *t2 = h.constant(2)
+  ASSERT_TRUE(h.isEquivalent(t1, t2));
 }
