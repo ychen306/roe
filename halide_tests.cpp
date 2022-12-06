@@ -24,8 +24,6 @@ TEST(HalideTest, simplify) {
   auto *t2 = h.add(h.var("x"), h.constant(2));
   ASSERT_FALSE(h.isEquivalent(t1, t2));
 
-  std::vector<std::unique_ptr<Rewrite<HalideTRS>>> rewrites;
-  rewrites.emplace_back(new HAssoc(h));
-  saturate<HalideTRS>(rewrites, h);
+  saturate<HalideTRS>(getRewrites(h), h);
   ASSERT_TRUE(h.isEquivalent(t1, t2));
 }
