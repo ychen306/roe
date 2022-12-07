@@ -5,6 +5,10 @@
 #include "Pattern.h"
 #include "llvm/ADT/StringMap.h"
 
+#include "llvm/Support/raw_ostream.h"
+
+using llvm::errs;
+
 // ValueType is the type of a constant (e.g., int)
 template <typename ValueType, typename EGraphT>
 class Language : public EGraph<EGraphT> {
@@ -30,6 +34,15 @@ public:
     return opcodeMap.lookup(opcode);
   }
 
+  unsigned getConstOpcode(ValueType val) {
+    auto [it, inserted] = constMap.try_emplace(val);
+    if (inserted) {
+      it->second = newId();
+      invConstMap[it->second] = val;
+    }
+    return it->second;
+  }
+
   EClassBase *make(std::string opcode, llvm::ArrayRef<EClassBase *> operands) {
     assert(opcodeMap.count(opcode));
     return Base::make(opcodeMap.lookup(opcode), operands);
@@ -43,12 +56,7 @@ public:
   }
 
   EClassBase *constant(ValueType val) {
-    auto [it, inserted] = constMap.try_emplace(val);
-    if (inserted) {
-      it->second = newId();
-      invConstMap[it->second] = val;
-    }
-    return Base::make(it->second, {});
+    return Base::make(getConstOpcode(val), {});
   }
 
   bool is_constant(unsigned id, ValueType &val) {
@@ -80,10 +88,19 @@ protected:
                                      std::forward<ArgTypes>(args)...);
   }
 
+  // match a constant
+  template <typename T>
+  Pattern *mConst(T x) {
+    return Rewrite<LanguageT>::match(l.getConstOpcode(x));
+  }
+
   template <typename... ArgTypes>
   EClassBase *make(std::string opcode, ArgTypes... args) {
     return l.make(opcode, {std::forward<ArgTypes>(args)...});
   }
+
+  template <typename T>
+  EClassBase *constant(T x) { return l.constant(x); }
 
 public:
   LanguageRewrite(LanguageT &l) : l(l) {}

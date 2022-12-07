@@ -41,11 +41,15 @@
 #define ry var("y")
 #define rz var("z")
 
-REWRITE(HalideTRS, AddAssoc, mAdd(mAdd(lx, ly), lz),
-        wAdd(rx, wAdd(ry, rz)))
+REWRITE(HalideTRS, AddAssoc, mAdd(mAdd(lx, ly), lz), wAdd(rx, wAdd(ry, rz)))
+REWRITE(HalideTRS, AddComm, mAdd(lx, ly), wAdd(ry, rx))
+REWRITE(HalideTRS, AddZero, mAdd(lx, mConst(0)), rx)
+
 
 std::vector<std::unique_ptr<Rewrite<HalideTRS>>> getRewrites(HalideTRS &h) {
   std::vector<std::unique_ptr<Rewrite<HalideTRS>>> rewrites;
   rewrites.emplace_back(new AddAssoc(h));
+  rewrites.emplace_back(new AddComm(h));
+  rewrites.emplace_back(new AddZero(h));
   return rewrites;
 }

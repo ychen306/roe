@@ -27,3 +27,10 @@ TEST(HalideTest, simplify) {
   saturate<HalideTRS>(getRewrites(h), h);
   ASSERT_TRUE(h.isEquivalent(t1, t2));
 }
+
+TEST(HalideTest, add_zero) {
+  HalideTRS h;
+  auto *t = h.add(h.constant(0), h.var("x"));
+  saturate<HalideTRS>(getRewrites(h), h);
+  ASSERT_TRUE(h.isEquivalent(t, h.var("x")));
+}
