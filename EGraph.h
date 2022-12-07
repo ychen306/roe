@@ -196,9 +196,7 @@ public:
     setData(c, analysis()->analyze(node));
     analysis()->modify(c);
 
-    assert(c->isLeader());
-    assert(getLeader(c) == c);
-    return c;
+    return getLeader(c);
   }
 
   EClassBase *merge(EClassBase *c1, EClassBase *c2) {

@@ -34,3 +34,14 @@ TEST(HalideTest, add_zero) {
   saturate<HalideTRS>(getRewrites(h), h);
   ASSERT_TRUE(h.isEquivalent(t, h.var("x")));
 }
+
+TEST(HalideTest, caviar_test) {
+  HalideTRS h;
+  auto *v0 = h.var("v0");
+  auto *v1 = h.var("v1");
+  auto *a = h.sub(h.add(v0, v1), h.constant(16));
+  auto *b = h.sub(h.add(h.sub(h.add(v0, v1), h.constant(16)), h.constant(143)), h.constant(1));
+  auto *t = h.eq(a, b);
+  saturate<HalideTRS>(getRewrites(h), h);
+  ASSERT_TRUE(h.isEquivalent(t, h.constant(0)));
+}

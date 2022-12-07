@@ -31,25 +31,74 @@
 #define wGte(a, b) make(">=", a, b)
 #define wEq(a, b) make("==", a, b)
 #define wNe(a, b) make("!=", a, b)
-#define wOr_(a, b) make("||", a, b)
-#define wAnd_(a, b) make("&&", a, b)
+#define wOr(a, b) make("||", a, b)
+#define wAnd(a, b) make("&&", a, b)
 
-#define lx var("x")
-#define ly var("y")
-#define lz var("z")
-#define rx var("x")
-#define ry var("y")
-#define rz var("z")
+#define a var("a")
+#define b var("b")
+#define c var("c")
 
-REWRITE(HalideTRS, AddAssoc, mAdd(mAdd(lx, ly), lz), wAdd(rx, wAdd(ry, rz)))
-REWRITE(HalideTRS, AddComm, mAdd(lx, ly), wAdd(ry, rx))
-REWRITE(HalideTRS, AddZero, mAdd(lx, mConst(0)), rx)
+#define x var("x")
+#define y var("y")
+#define z var("z")
 
+// Add
+REWRITE(HalideTRS, AddAssoc, mAdd(mAdd(a, b), c), wAdd(a, wAdd(b, c)))
+REWRITE(HalideTRS, AddComm, mAdd(a, b), wAdd(b, a))
+REWRITE(HalideTRS, AddZero, mAdd(a, mConst(0)), a)
+REWRITE(HalideTRS, AddDistMul, mMul(a, mAdd(b, c)), wAdd(wMul(a, b), wMul(a, c)))
+REWRITE(HalideTRS, AddFactMul, mAdd(mMul(a, b), mMul(a, c)), wMul(a, wAdd(b, c)))
+REWRITE(HalideTRS, AddDenomMul, mAdd(mDiv(a, b), c), wDiv(wAdd(a, wMul(b, c)), b))
+REWRITE(HalideTRS, AddDenomDiv, mDiv(mAdd(a, mMul(b, c)), b), wAdd(wDiv(a, b), c))
+REWRITE(HalideTRS, AddDivMod, mAdd(mDiv(x, mConst(2)), mMod(x, mConst(2))),
+                              wDiv(wAdd(x, constant(1)), constant(2)))
+
+// Sub
+REWRITE(HalideTRS, SubToAdd, mSub(a, b), wAdd(a, wMul(constant(-1), b)))
+
+// Mul
+REWRITE(HalideTRS, MulAssoc, mMul(mMul(a, b), c), wAdd(a, wMul(b, c)))
+REWRITE(HalideTRS, MulComm, mMul(a, b), wMul(b, a))
+REWRITE(HalideTRS, MulZero, mMul(a, mConst(0)), constant(0))
+REWRITE(HalideTRS, MulOne, mMul(a, mConst(1)), a)
+REWRITE(HalideTRS, MulCancelDiv, mMul(mDiv(a, b), b), wSub(a, wMod(a, b)))
+REWRITE(HalideTRS, MulMaxMin, mMul(mMax(a, b), mMin(a, b)), wMul(a, b))
+REWRITE(HalideTRS, DivCancelMul, mDiv(mMul(y, x), x), y)
+
+
+// Eq
+REWRITE(HalideTRS, EqComm, mEq(a, b), wEq(b, a))
+REWRITE(HalideTRS, EqSub0, mEq(x, y), wEq(wSub(x, y), constant(0)))
+REWRITE(HalideTRS, EqSwap, mEq(mAdd(x, y), z), wEq(x, wSub(z, y)))
+REWRITE(HalideTRS, EqRefl, mEq(x, x), constant(1))
+REWRITE(HalideTRS, EqMul0, mEq(mMul(x, y), mConst(0)), wOr(wEq(x, constant(0)), wEq(y, constant(0))))
+REWRITE(HalideTRS, EqMaxLt, mEq(mMax(x, y), y), wLte(x, y))
+REWRITE(HalideTRS, EqMinLt, mEq(mMin(x, y), y), wLte(y, x))
 
 std::vector<std::unique_ptr<Rewrite<HalideTRS>>> getRewrites(HalideTRS &h) {
   std::vector<std::unique_ptr<Rewrite<HalideTRS>>> rewrites;
   rewrites.emplace_back(new AddAssoc(h));
   rewrites.emplace_back(new AddComm(h));
   rewrites.emplace_back(new AddZero(h));
+  rewrites.emplace_back(new AddDistMul(h));
+  rewrites.emplace_back(new AddFactMul(h));
+  rewrites.emplace_back(new AddDenomMul(h));
+  rewrites.emplace_back(new AddDenomDiv(h));
+  rewrites.emplace_back(new AddDivMod(h));
+  rewrites.emplace_back(new SubToAdd(h));
+  rewrites.emplace_back(new MulAssoc(h));
+  rewrites.emplace_back(new MulComm(h));
+  rewrites.emplace_back(new MulZero(h));
+  rewrites.emplace_back(new MulOne(h));
+  rewrites.emplace_back(new MulCancelDiv(h));
+  rewrites.emplace_back(new MulMaxMin(h));
+  rewrites.emplace_back(new DivCancelMul(h));
+  rewrites.emplace_back(new EqComm(h));
+  rewrites.emplace_back(new EqSub0(h));
+  rewrites.emplace_back(new EqSwap(h));
+  rewrites.emplace_back(new EqRefl(h));
+  rewrites.emplace_back(new EqMul0(h));
+  rewrites.emplace_back(new EqMaxLt(h));
+  rewrites.emplace_back(new EqMinLt(h));
   return rewrites;
 }
