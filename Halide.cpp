@@ -34,11 +34,18 @@
 #define wOr_(a, b) make("||", a, b)
 #define wAnd_(a, b) make("&&", a, b)
 
-REWRITE(HalideTRS, HAssoc, mAdd(mAdd(var("x"), var("y")), var("z")),
-        wAdd(var("x"), wAdd(var("y"), var("z"))))
+#define lx var("x")
+#define ly var("y")
+#define lz var("z")
+#define rx var("x")
+#define ry var("y")
+#define rz var("z")
+
+REWRITE(HalideTRS, AddAssoc, mAdd(mAdd(lx, ly), lz),
+        wAdd(rx, wAdd(ry, rz)))
 
 std::vector<std::unique_ptr<Rewrite<HalideTRS>>> getRewrites(HalideTRS &h) {
   std::vector<std::unique_ptr<Rewrite<HalideTRS>>> rewrites;
-  rewrites.emplace_back(new HAssoc(h));
+  rewrites.emplace_back(new AddAssoc(h));
   return rewrites;
 }
