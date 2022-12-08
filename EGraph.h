@@ -22,6 +22,8 @@ public:
       : opcode(opcode), operands(operands.begin(), operands.end()),
         cls(nullptr) {}
   llvm::ArrayRef<EClassBase *> getOperands() const { return operands; }
+  decltype(operands)::iterator operand_begin() { return operands.begin(); }
+  decltype(operands)::iterator operand_end() { return operands.end(); }
   Opcode getOpcode() const { return opcode; }
   void setClass(EClassBase *cls2) { cls = cls2; }
   EClassBase *getClass() const { return cls; }
@@ -71,6 +73,7 @@ public:
   }
   llvm::DenseSet<ENode *> *getUsersByUses(Opcode opcode, unsigned operandId);
   llvm::DenseSet<ENode *> *getNodesByOpcode(Opcode opcode);
+  decltype(opcodeToNodesMap) &getNodes() { return opcodeToNodesMap; }
 };
 
 template <typename EGraphT> class EGraph;
