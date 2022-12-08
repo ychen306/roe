@@ -43,6 +43,11 @@ public:
     return it->second;
   }
 
+  unsigned getVariableOpcode(std::string var) const {
+    assert(varMap.count(var));
+    return varMap.lookup(var);
+  }
+
   EClassBase *make(std::string opcode, llvm::ArrayRef<EClassBase *> operands) {
     assert(opcodeMap.count(opcode));
     return Base::make(opcodeMap.lookup(opcode), operands);

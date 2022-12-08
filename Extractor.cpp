@@ -1,5 +1,10 @@
 #include "Extractor.h"
 #include "EGraph.h"
+#include "llvm/Support/raw_ostream.h"
+
+using llvm::errs;
+
+Extractor::~Extractor() {}
 
 Extractor::Result Extractor::extract(EClassBase *c) {
   llvm::DenseMap<ENode *, Cost> totalCosts;
@@ -12,13 +17,14 @@ Extractor::Result Extractor::extract(EClassBase *c) {
     Cost cost = costOf(node);
     for (auto *o : node->getOperands()) {
       Cost bestCost = -1;
-      for (auto &childNodes : llvm::make_second_range(o->getNodes())) {
+      for (auto &childNodes : llvm::make_second_range(o->getLeader()->getNodes())) {
         for (auto *n2 : childNodes) {
           Cost childCost = totalCostOf(n2);
           if (bestCost < 0 || childCost < bestCost)
             bestCost = childCost;
         }
       }
+      assert(bestCost >= 0);
       cost += bestCost;
     }
     return totalCosts[node] = cost;
@@ -26,8 +32,12 @@ Extractor::Result Extractor::extract(EClassBase *c) {
 
   llvm::SmallVector<EClassBase *> worklist {c};
   Result result;
+  llvm::DenseSet<EClassBase *> visited;
   while (!worklist.empty()) {
     auto *c = worklist.pop_back_val();
+    c = c->getLeader();
+    if (!visited.insert(c).second)
+      continue;
     Cost bestCost;
     ENode *bestNode = nullptr;
     for (auto &nodes : llvm::make_second_range(c->getNodes())) {

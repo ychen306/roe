@@ -12,9 +12,8 @@ public:
   using Result = llvm::DenseMap<EClassBase *, ENode *>;
   using Cost = float;
 private:
-  EGraphBase *g;
 public:
-  Extractor(EGraphBase *g) : g(g) {}
+  virtual ~Extractor();
   // Trivial cost using ast size
   virtual Cost costOf(ENode *) { return 1; }
   Result extract(EClassBase *);
