@@ -47,8 +47,13 @@ public:
   AnalysisData analyze(ENode *node) {
     auto opcode = node->getOpcode();
     int x;
-    if (is_constant(opcode, x))
+    if (is_constant(opcode, x)) {
+#ifndef NDEBUG
+      if (auto y = getData(node->getClass()))
+        assert(x == *y);
+#endif
       return x;
+    }
 
     auto operands = node->getOperands();
     if (operands.size() != 2)
@@ -92,11 +97,71 @@ public:
     return std::nullopt;
   }
 
-  AnalysisData join(AnalysisData a, AnalysisData b) { return a ? a : b; }
+  AnalysisData join(AnalysisData a, AnalysisData b) { 
+    assert(!a || !b || *a == *b);
+    return a ? a : b;
+  }
 
   void modify(EClassBase *c) {
     if (auto x = getData(c))
       merge(c, constant(*x));
+  }
+
+  void printIndent(int indent) {
+    for (int i = 0; i < indent; i++)
+      errs() << '\t';
+  }
+
+  void dump(ENode *node) override {
+    auto varName = getVarName(node->getOpcode());
+    auto opcodeName = getOpcodeName(node->getOpcode());
+    if (varName != "") {
+      errs() << varName << '\n';
+    } else if (opcodeName != "") {
+      errs() << "(" << opcodeName;
+      for (auto *o : node->getOperands()) {
+        errs() << ' ' << o;
+        if (auto x = getData(o))
+          errs() << "[data=" << *x << ']';
+      }
+      errs() << ")\n";
+    } else {
+      int c;
+      bool isC = is_constant(node->getOpcode(), c);
+      assert(isC);
+      errs() << "(const " << c << ")\n";
+    }
+  }
+
+  void dump(EClassBase *c) override {
+    for (auto &nodes : llvm::make_second_range(c->getNodes())) {
+      for (auto *node : nodes)
+        dump(node);
+    }
+  }
+
+  void dump() override {
+    for (auto *c : llvm::make_range(class_begin(), class_end())) {
+      errs() << "CLASS " << c << "{\n";
+      dump(c);
+      errs() << "}\n";
+      errs() << "\t data = ";
+      if (auto x = getData(c)) {
+        errs() << *x << '\n';
+      } else {
+        errs() << "null\n";
+      }
+    }
+  }
+
+  void classRep(EClassBase *c) override {
+    c = getLeader(c);
+    errs() << c << "[data=";
+    if (auto x = getData(c)) {
+      errs() << *x << ']';
+    } else {
+      errs() << "null]";
+    }
   }
 };
 

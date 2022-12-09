@@ -4,6 +4,8 @@
 
 using llvm::errs;
 
+int dontPrint = false;
+
 namespace {
 
 // Destructively merge `src` into `dst`.
@@ -83,18 +85,24 @@ ENode *EGraphBase::findNode(Opcode opcode, llvm::ArrayRef<EClassBase *> operands
   return findNode(canonicalize(opcode, operands));
 }
 
-void EClassBase::repairUserSets(const llvm::DenseMap<ENode *, ENode *> &oldToNewUserMap) {
+void EClassBase::repairUserSets(llvm::ArrayRef<Replacement> repls) {
   // Fix the use index by replacing the duplicated user
   // with their new canonical user
-  for (auto &kv : oldToNewUserMap) {
-    if (users.erase(kv.first))
-      users.insert(kv.second);
+  for (auto &repl : repls) {
+    bool erased = false;
+    for (auto *node : repl.from)
+      erased |= users.erase(node);
+    if (erased)
+      users.insert(repl.to);
   }
 
   for (auto &nodes : llvm::make_second_range(uses)) {
-    for (auto &kv : oldToNewUserMap) {
-      if (nodes.erase(kv.first))
-        nodes.insert(kv.second);
+    for (auto &repl : repls) {
+      bool erased = false;
+      for (auto *node : repl.from)
+        erased |= nodes.erase(node);
+      if (erased)
+        nodes.insert(repl.to);
     }
   }
 }

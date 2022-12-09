@@ -161,6 +161,34 @@ TEST(MatchTest, simple) {
   ASSERT_EQ(subst[py], y);
 }
 
+TEST(MatchTest, dist) {
+  unsigned mul = 10, add = 20;
+
+  BasicEGraph g;
+  auto x = g.make(0);
+  auto y = g.make(1);
+  auto z = g.make(3);
+  auto *yx = g.make(mul, {x, y});
+  auto *xy = g.make(mul, {y, x});
+  g.merge(xy, yx);
+  auto *yz = g.make(mul, {y, z});
+  g.make(add, {yx, yz});
+
+  auto *a = Pattern::var();
+  auto *b = Pattern::var();
+  auto *c = Pattern::var();
+  auto *ab = Pattern::make(mul, {a, b});
+  auto *ac = Pattern::make(mul, {a, c});
+  auto *p = Pattern::make(add, {ab, ac});
+  auto matches = match(p, g);
+  auto &m = matches[0];
+  ASSERT_EQ(matches.size(), 1);
+  llvm::DenseMap<Pattern *, EClassBase *> subst(m.begin(), m.end());
+  ASSERT_EQ(subst[a], y);
+  ASSERT_EQ(subst[b], x);
+  ASSERT_EQ(subst[c], z);
+}
+
 TEST(MatchTest, simple2) {
   auto px = Pattern::var();
   auto py = Pattern::var();

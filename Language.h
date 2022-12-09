@@ -12,10 +12,14 @@ using llvm::errs;
 // ValueType is the type of a constant (e.g., int)
 template <typename ValueType, typename EGraphT>
 class Language : public EGraph<EGraphT> {
+public:
   unsigned counter;
   llvm::StringMap<unsigned> opcodeMap;
   llvm::StringMap<unsigned> varMap;
   llvm::DenseMap<ValueType, unsigned> constMap;
+
+  llvm::DenseMap<unsigned, std::string> invVarMap;
+  llvm::DenseMap<unsigned, std::string> invOpcodeMap;
   llvm::DenseMap<unsigned, ValueType> invConstMap;
 
   unsigned newId() { return counter++; }
@@ -26,12 +30,21 @@ public:
   Language(llvm::ArrayRef<std::string> opcodes) : counter(0) {
     for (auto &op : opcodes) {
       opcodeMap[op] = newId();
+      invOpcodeMap[opcodeMap[op]] = op;
     }
   }
 
   unsigned getOpcode(std::string opcode) const {
     assert(opcodeMap.count(opcode));
     return opcodeMap.lookup(opcode);
+  }
+
+  std::string getVarName(unsigned id) {
+    return invVarMap.lookup(id);
+  }
+
+  std::string getOpcodeName(unsigned id) {
+    return invOpcodeMap.lookup(id);
   }
 
   unsigned getConstOpcode(ValueType val) {
@@ -55,8 +68,10 @@ public:
 
   EClassBase *var(std::string var) {
     auto [it, inserted] = varMap.try_emplace(var);
-    if (inserted)
+    if (inserted) {
       it->setValue(newId());
+      invVarMap[it->getValue()] = var;
+    }
     return Base::make(it->getValue(), {});
   }
 
@@ -111,7 +126,7 @@ public:
   LanguageRewrite(LanguageT &l) : l(l) {}
   using LookupFuncTy = std::function<EClassBase *(llvm::StringRef)>;
   virtual EClassBase *rhs(LookupFuncTy var) = 0;
-  EClassBase *apply(const PatternToClassMap &m, LanguageT &) override {
+  EClassBase *apply(const PatternToClassMap &m, LanguageT &l) override {
     return rhs(
         [&](llvm::StringRef name) { return m.lookup(varMap.lookup(name)); });
   }
@@ -119,7 +134,7 @@ public:
 
 #define REWRITE(LANG, RW, LHS, RHS)                                            \
   struct RW : public LanguageRewrite<LANG> {                                   \
-    RW(LANG &l) : LanguageRewrite<LANG>(l) { root = LHS; }                     \
+    RW(LANG &l) : LanguageRewrite<LANG>(l) { root = LHS; name = #RW; }                     \
     EClassBase *rhs(LookupFuncTy var) override { return RHS; }                 \
   };
 

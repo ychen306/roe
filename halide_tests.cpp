@@ -16,6 +16,7 @@ TEST(HalideTest, one_plus_one) {
   auto *t1 = h.add(h.constant(1), h.constant(1));
   auto *t2 = h.constant(2);
   ASSERT_TRUE(h.isEquivalent(t1, t2));
+  ASSERT_EQ(std::distance(h.class_begin(), h.class_end()), 2);
 }
 
 TEST(HalideTest, simplify) {
@@ -36,7 +37,7 @@ TEST(HalideTest, add_zero) {
   ASSERT_TRUE(h.isEquivalent(t, h.var("x")));
 }
 
-#if 0
+#if 1
 TEST(HalideTest, caviar_test) {
   HalideTRS h;
   auto *v0 = h.var("v0");
@@ -44,7 +45,9 @@ TEST(HalideTest, caviar_test) {
   auto *a = h.sub(h.add(v0, v1), h.constant(16));
   auto *b = h.sub(h.add(h.sub(h.add(v0, v1), h.constant(16)), h.constant(143)), h.constant(1));
   auto *t = h.eq(a, b);
-  saturate<HalideTRS>(getRewrites(h), h);
+  saturate<HalideTRS>(getRewrites(h), h, 100);
+  errs() << "????? num classes = " << std::distance(h.class_begin(), h.class_end()) << '\n';
+  errs() << "value = " << *h.getData(h.constant(16)) << '\n';
   ASSERT_TRUE(h.isEquivalent(t, h.constant(0)));
 }
 #endif

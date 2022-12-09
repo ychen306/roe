@@ -57,7 +57,7 @@ REWRITE(HalideTRS, AddDivMod, mAdd(mDiv(x, mConst(2)), mMod(x, mConst(2))),
 REWRITE(HalideTRS, SubToAdd, mSub(a, b), wAdd(a, wMul(constant(-1), b)))
 
 // Mul
-REWRITE(HalideTRS, MulAssoc, mMul(mMul(a, b), c), wAdd(a, wMul(b, c)))
+REWRITE(HalideTRS, MulAssoc, mMul(mMul(a, b), c), wMul(a, wMul(b, c)))
 REWRITE(HalideTRS, MulComm, mMul(a, b), wMul(b, a))
 REWRITE(HalideTRS, MulZero, mMul(a, mConst(0)), constant(0))
 REWRITE(HalideTRS, MulOne, mMul(a, mConst(1)), a)

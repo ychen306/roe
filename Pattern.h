@@ -4,6 +4,9 @@
 #include "EGraph.h"
 #include <memory>
 #include <vector>
+#include "llvm/Support/raw_ostream.h"
+
+extern int dontPrint;
 
 class Pattern {
   bool isLeaf;
@@ -55,6 +58,7 @@ class Rewrite {
   std::vector<Pattern *> patternNodes;
 
 protected:
+  std::string name;
   Pattern *root;
   template <typename... ArgTypes> Pattern *match(Opcode op, ArgTypes... args) {
     patternNodes.push_back(
@@ -83,7 +87,7 @@ public:
 };
 
 template<typename EGraphT>
-void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite<EGraphT>>> rewrites, EGraphT &g) {
+void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite<EGraphT>>> rewrites, EGraphT &g, int iters = -1) {
   unsigned size;
   do {
     size = g.numNodes();
@@ -93,7 +97,9 @@ void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite<EGraphT>>> rewrites, EGraph
     for (unsigned i = 0, n = rewrites.size(); i < n; i++)
       rewrites[i]->applyMatches(matches[i], g);
     g.rebuild();
-  } while (size != g.numNodes());
+    iters -= 1;
+    llvm::errs() << "???? " << iters << '\n';
+  } while (size != g.numNodes() || iters == 0);
 }
 
 #endif // PATTERN_H

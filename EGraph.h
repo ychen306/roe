@@ -5,6 +5,9 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
+
+using llvm::errs;
 
 #include <vector>
 
@@ -41,7 +44,12 @@ protected:
   // Partitioning the nodes by opcode
   llvm::DenseMap<Opcode, llvm::DenseSet<ENode *>> opcodeToNodesMap;
 
-  void repairUserSets(const llvm::DenseMap<ENode *, ENode *> &oldToNewUserMap);
+  struct Replacement {
+    std::vector<ENode *> from;
+    ENode *to;
+  };
+
+  void repairUserSets(llvm::ArrayRef<Replacement>);
 
 public:
   EClassBase() : rank(0), leader(this) {}
@@ -164,6 +172,10 @@ public:
     return getLeader(c1) == getLeader(c2);
   }
   unsigned numNodes() const { return nodes.size(); }
+  virtual void dump() {}
+  virtual void dump(ENode *) {}
+  virtual void dump(EClassBase *) {}
+  virtual void classRep(EClassBase *) {}
 };
 
 template <typename EGraphT> class EGraph : public EGraphBase {
@@ -176,13 +188,14 @@ protected:
     static_cast<EClass<EGraphT> *>(c)->data = data;
   }
 
-  auto getData(EClassBase *c) {
-    return static_cast<EClass<EGraphT> *>(c)->data;
-  }
 
   EGraphT *analysis() { return static_cast<EGraphT *>(this); }
 
 public:
+  auto getData(EClassBase *c) {
+    return static_cast<EClass<EGraphT> *>(c)->data;
+  }
+
   EClassBase *make(Opcode opcode,
                    llvm::ArrayRef<EClassBase *> operands = llvm::None) {
     ENode *node = findNode(opcode, operands);
@@ -199,6 +212,7 @@ public:
     setData(c, analysis()->analyze(node));
     analysis()->modify(c);
 
+    assert(getLeader(c));
     return getLeader(c);
   }
 
@@ -251,6 +265,17 @@ public:
 };
 
 template <typename EGraphT> void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
+  for (auto &nodes : llvm::make_second_range(opcodeToNodesMap)) {
+    llvm::DenseSet<ENode *> canonNodes;
+    for (auto *n : nodes) {
+      auto key = g->canonicalize(n->getOpcode(), n->getOperands());
+      auto *n2 = g->findNode(key);
+      n2->setClass(this);
+      canonNodes.insert(n2);
+    }
+    nodes = std::move(canonNodes);
+  }
+
   // Group users together by their canonical representation
   llvm::DenseMap<NodeKey, std::vector<ENode *>, NodeHashInfo> uniqueUsers;
   for (ENode *user : users) {
@@ -259,7 +284,7 @@ template <typename EGraphT> void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
   }
 
   // Remember the nodes that we are replacing
-  llvm::DenseMap<ENode *, ENode *> oldToNewUserMap;
+  std::vector<Replacement> repls;
   // Merge and remove the duplicated users
   for (auto kv : uniqueUsers) {
     NodeKey key = kv.first;
@@ -272,18 +297,22 @@ template <typename EGraphT> void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
     assert(c);
     ENode *user = g->findNode(key);
 
-    oldToNewUserMap.try_emplace(node0, user);
+    auto &rep = repls.emplace_back();
+    rep.to = user;
+    rep.from.push_back(node0);
     for (auto *node : llvm::drop_begin(nodes)) {
       assert(node->getClass());
       g->merge(c, node->getClass());
-      oldToNewUserMap.try_emplace(node, user);
+      rep.from.push_back(node);
     }
+
+    c = c->getLeader();
 
     user->setClass(c);
     users.insert(user);
     for (auto *operand : user->getOperands())
       static_cast<EClass<EGraphT> *>(g->getLeader(operand))
-          ->repairUserSets(oldToNewUserMap);
+          ->repairUserSets(repls);
   }
 }
 

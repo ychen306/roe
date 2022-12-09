@@ -55,8 +55,11 @@ void PatternMatcher::outputSubstitution() {
   for (auto *pat : patternNodes) {
     if (pat->isVar())
       match.emplace_back(pat, subst.lookup(pat).get<EClassBase *>());
+    else
+      match.emplace_back(pat, subst.lookup(pat).get<ENode *>()->getClass());
   }
-  match.emplace_back(root, subst.lookup(root).get<ENode *>()->getClass());
+  assert(subst.lookup(root).get<ENode *>()->getClass());
+  //match.emplace_back(root, subst.lookup(root).get<ENode *>()->getClass());
 }
 
 bool PatternMatcher::runImpl(unsigned level) {
@@ -160,6 +163,10 @@ bool PatternMatcher::runOnPattern(Pattern *pat, unsigned level) {
     // Backtrack if stuck
     if (!nodes || nodes->empty())
       return false;
+    assert(all_of(*nodes, [&](auto *node) {
+          return operandId < node->getOperands().size() &&
+          g.isEquivalent(node->getOperands()[operandId], operandClass);
+          }));
     candidates.push_back(nodes);
   }
 
