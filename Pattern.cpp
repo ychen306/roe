@@ -139,7 +139,8 @@ bool PatternMatcher::runOnPattern(Pattern *pat, unsigned level) {
     if (!user)
       continue;
     // `pat` has to bind to a node in class `c`
-    auto *c = g.getLeader(user->getOperands()[operandId]);
+    auto *c = user->getOperands()[operandId];
+    assert(c->isLeader());
     auto *nodes = c->getNodesByOpcode(pat->getOpcode());
     // Backtrack if stuck
     if (!nodes || nodes->empty())

@@ -248,6 +248,7 @@ TEST(MatchTest, ex1) {
     g.merge(fs[0], fs[i]);
     g.merge(hs[0], hs[i]);
   }
+  g.rebuild();
 
   ASSERT_EQ(std::distance(g.class_begin(), g.class_end()), 2 + n);
   for (int i = 1; i < n; i++)
