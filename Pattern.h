@@ -49,7 +49,7 @@ public:
 
 using Substitution = llvm::SmallVector<std::pair<Pattern *, EClassBase *>, 4>;
 
-std::vector<Substitution> match(Pattern *, EGraphBase &);
+std::vector<Substitution> match(Pattern *, EGraphBase &, int limit=-1);
 
 using PatternToClassMap = llvm::SmallDenseMap<Pattern *, EClassBase *, 4>;
 
@@ -84,22 +84,57 @@ public:
       g.merge(c, subst.lookup(root));
     }
   }
+  std::string getName() const { return name; }
 };
 
 template<typename EGraphT>
-void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite<EGraphT>>> rewrites, EGraphT &g, int iters = -1) {
+void saturate(llvm::ArrayRef<std::unique_ptr<Rewrite<EGraphT>>> rewrites, EGraphT &g, int iters = 10000) {
   unsigned size;
-  do {
+  struct Stat {
+    int numBans;
+    int bannedUntil;
+    Stat() : numBans(0), bannedUntil(-1) {}
+  };
+
+  const unsigned banLen = 5;
+  const unsigned matchLimit = 1000;
+
+  llvm::DenseMap<Rewrite<EGraphT> *, Stat> stats;
+  for (auto &rw : rewrites)
+    stats.try_emplace(rw.get());
+
+  for (int i = 0; i < iters; i++) {
     size = g.numNodes();
     std::vector<std::vector<Substitution>> matches;
-    for (auto &rw : rewrites)
-      matches.push_back(match(rw->sourcePattern(), g));
+    for (auto &rw : rewrites) {
+      // Skip banned rewrite
+      auto &stat = stats[rw.get()];
+      if (stat.bannedUntil > 0 && stat.bannedUntil < i) {
+        matches.emplace_back();
+        continue;
+      }
+
+      unsigned threshold = matchLimit << stat.numBans;
+      auto ms = match(rw->sourcePattern(), g, threshold);
+      unsigned totalSize = 0;
+      for (auto &m : ms)
+        totalSize += m.size();
+      if (totalSize > threshold) {
+        stat.bannedUntil = i + (banLen << stat.numBans);
+        stat.numBans++;
+        ms.clear();
+      }
+      matches.push_back(std::move(ms));
+    }
+
     for (unsigned i = 0, n = rewrites.size(); i < n; i++)
       rewrites[i]->applyMatches(matches[i], g);
+
     g.rebuild();
-    iters -= 1;
-    llvm::errs() << "???? " << iters << '\n';
-  } while (size != g.numNodes() || iters == 0);
+    if (size == g.numNodes())
+      break;
+    llvm::errs() << "???? " << i << ", num classes = " << std::distance(g.class_begin(), g.class_end()) << '\n';
+  }
 }
 
 #endif // PATTERN_H

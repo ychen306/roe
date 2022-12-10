@@ -72,10 +72,6 @@ public:
   void addUse(ENode *user, unsigned i);
   // Aborb `other` into `this` class and empther `other`
   void absorb(EClassBase *other);
-  void swap(EClassBase *other) {
-    uses.swap(other->uses);
-    opcodeToNodesMap.swap(other->opcodeToNodesMap);
-  }
   llvm::iterator_range<decltype(users)::iterator> getUsers() {
     return llvm::make_range(users.begin(), users.end());
   }
@@ -241,12 +237,16 @@ public:
   }
 
   void rebuild() {
+    for (auto *c : llvm::make_range(class_begin(), class_end()))
+      static_cast<EClass<EGraphT> *>(c)->repair(this);
+
     while (!repairList.empty()) {
       llvm::DenseSet<EClassBase *> todo;
       for (auto *c : repairList)
         todo.insert(getLeader(c));
       repairList.clear();
-      for (auto *c : todo) {
+      for (auto it = todo.begin(), end = todo.end(); it != end; ++it) {
+        auto *c = *it;
         static_cast<EClass<EGraphT> *>(getLeader(c))->repair(this);
 
         analysis()->modify(c);
@@ -259,18 +259,67 @@ public:
             repairList.push_back(userClass);
           }
         }
+
+#ifndef NDEBUG
+        // Check that the nodes are either canonical or we are about to repair their children
+        for (auto &nodes : llvm::make_second_range(c->getNodes())) {
+          for (auto *node : nodes) {
+            for (auto *o : node->getOperands()) {
+              auto equivalent = [&](auto *c2) {
+                return c2->getLeader() == o->getLeader();
+              };
+              assert(o->isLeader() ||
+                  llvm::any_of(repairList, equivalent) ||
+                  std::any_of(std::next(it), end, equivalent));
+            }
+          }
+        }
+#endif
+
+      }
+
+    }
+#if 0
+#ifndef NDEBUG
+    // check that everything is canonical
+    for (auto *c : llvm::make_range(class_begin(), class_end())) {
+      for (auto &nodes : llvm::make_second_range(c->getNodes()))
+        for (auto *node : nodes) {
+          assert(llvm::count(nodes, findNode(canonicalize(node->getOpcode(), node->getOperands()))));
+        }
+    }
+#endif
+    for (auto *c : llvm::make_range(class_begin(), class_end())) {
+      for (auto &nodes : llvm::make_second_range(c->getNodes())) {
+        std::vector<ENode *> toDelete;
+        for (auto *node : nodes) 
+          if (any_of(node->getOperands(), [&](auto *o) { return !o->isLeader(); }))
+            toDelete.push_back(node);
+        for (auto *node : toDelete)
+          nodes.erase(node);
       }
     }
+#endif
   }
 };
 
 template <typename EGraphT> void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
+  assert(isLeader());
   for (auto &nodes : llvm::make_second_range(opcodeToNodesMap)) {
     llvm::DenseSet<ENode *> canonNodes;
     for (auto *n : nodes) {
       auto key = g->canonicalize(n->getOpcode(), n->getOperands());
       auto *n2 = g->findNode(key);
       n2->setClass(this);
+      assert(all_of(n2->getOperands(), [&](auto *o) {
+        return any_of(o->getLeader()->getUsers(), [&](auto *user) {
+          if (g->findNode(g->canonicalize(user->getOpcode(),
+                                             user->getOperands())) == n2) {
+          return true;
+          }
+          return false;
+        });
+      }));
       canonNodes.insert(n2);
     }
     nodes = std::move(canonNodes);
@@ -285,12 +334,14 @@ template <typename EGraphT> void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
 
   // Remember the nodes that we are replacing
   std::vector<Replacement> repls;
+  llvm::DenseSet<ENode *> newUsers;
   // Merge and remove the duplicated users
+  decltype(uses) newUses;
   for (auto kv : uniqueUsers) {
     NodeKey key = kv.first;
     auto &nodes = kv.second;
-    if (nodes.size() <= 1)
-      continue;
+    // if (nodes.size() <= 1)
+    // continue;
 
     ENode *node0 = nodes.front();
     auto *c = node0->getClass();
@@ -309,11 +360,27 @@ template <typename EGraphT> void EClass<EGraphT>::repair(EGraph<EGraphT> *g) {
     c = c->getLeader();
 
     user->setClass(c);
-    users.insert(user);
-    for (auto *operand : user->getOperands())
-      static_cast<EClass<EGraphT> *>(g->getLeader(operand))
-          ->repairUserSets(repls);
+    newUsers.insert(user);
+    //users.insert(user);
+
+    auto *nodesOfC = c->getNodesByOpcode(user->getOpcode());
+    assert(nodesOfC);
+    for (auto *from : rep.from)
+      nodesOfC->erase(from);
+    nodesOfC->insert(user);
+
+
+    auto userOperands = user->getOperands();
+    for (unsigned i = 0; i < userOperands.size(); i++) {
+      if (g->isEquivalent(userOperands[i], this))
+        newUses[std::make_pair(user->getOpcode(), i)].insert(user);
+    }
+
+    //for (auto *operand : user->getOperands())
+    //  static_cast<EClass<EGraphT> *>(g->getLeader(operand))->repairUserSets(repls);
   }
+  users = std::move(newUsers);
+  uses = std::move(newUses);
 }
 
 struct NullAnalysis {

@@ -115,6 +115,7 @@ public:
   void dump(ENode *node) override {
     auto varName = getVarName(node->getOpcode());
     auto opcodeName = getOpcodeName(node->getOpcode());
+    errs() << '\t' << node << ' ';
     if (varName != "") {
       errs() << varName << '\n';
     } else if (opcodeName != "") {

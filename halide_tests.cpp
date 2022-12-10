@@ -45,9 +45,7 @@ TEST(HalideTest, caviar_test) {
   auto *a = h.sub(h.add(v0, v1), h.constant(16));
   auto *b = h.sub(h.add(h.sub(h.add(v0, v1), h.constant(16)), h.constant(143)), h.constant(1));
   auto *t = h.eq(a, b);
-  saturate<HalideTRS>(getRewrites(h), h, 100);
-  errs() << "????? num classes = " << std::distance(h.class_begin(), h.class_end()) << '\n';
-  errs() << "value = " << *h.getData(h.constant(16)) << '\n';
+  saturate<HalideTRS>(getRewrites(h), h, 10);
   ASSERT_TRUE(h.isEquivalent(t, h.constant(0)));
 }
 #endif

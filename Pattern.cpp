@@ -20,6 +20,7 @@ class PatternMatcher {
   Pattern *root;
   EGraphBase &g;
   std::vector<Substitution> &matches;
+  int limit;
   llvm::SmallVector<Pattern *> patternNodes;
   using ClassOrNode = llvm::PointerUnion<EClassBase *, ENode *>;
   llvm::ScopedHashTable<Pattern *, ClassOrNode> subst;
@@ -31,14 +32,14 @@ class PatternMatcher {
   void outputSubstitution();
 
 public:
-  PatternMatcher(Pattern *, EGraphBase &g, std::vector<Substitution> &matches);
+  PatternMatcher(Pattern *, EGraphBase &g, std::vector<Substitution> &matches, int limit);
   void run();
 };
 } // namespace
 
 PatternMatcher::PatternMatcher(Pattern *pat, EGraphBase &g,
-                               std::vector<Substitution> &matches)
-    : root(pat), g(g), matches(matches) {
+                               std::vector<Substitution> &matches, int limit)
+    : root(pat), g(g), matches(matches), limit(limit) {
   llvm::SmallPtrSet<Pattern *, 8> visited;
   llvm::SmallVector<Pattern *, 8> worklist{pat};
   while (!worklist.empty()) {
@@ -63,6 +64,9 @@ void PatternMatcher::outputSubstitution() {
 }
 
 bool PatternMatcher::runImpl(unsigned level) {
+  if (limit > 0 && matches.size() >= limit)
+    return false;
+
   if (level == patternNodes.size()) {
     outputSubstitution();
     return true;
@@ -140,7 +144,8 @@ bool PatternMatcher::runOnPattern(Pattern *pat, unsigned level) {
       continue;
     // `pat` has to bind to a node in class `c`
     auto *c = user->getOperands()[operandId];
-    assert(c->isLeader());
+    c = c->getLeader();
+    //assert(c->isLeader());
     auto *nodes = c->getNodesByOpcode(pat->getOpcode());
     // Backtrack if stuck
     if (!nodes || nodes->empty())
@@ -197,9 +202,9 @@ bool PatternMatcher::runOnPattern(Pattern *pat, unsigned level) {
 
 void PatternMatcher::run() { runImpl(0); }
 
-std::vector<Substitution> match(Pattern *pat, EGraphBase &g) {
+std::vector<Substitution> match(Pattern *pat, EGraphBase &g, int limit) {
   std::vector<Substitution> matches;
-  PatternMatcher matcher(pat, g, matches);
+  PatternMatcher matcher(pat, g, matches, limit);
   matcher.run();
   return matches;
 }

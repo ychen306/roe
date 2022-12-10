@@ -5,6 +5,7 @@
 using llvm::errs;
 
 int dontPrint = false;
+bool print = false;
 
 namespace {
 
@@ -43,6 +44,7 @@ void EClassBase::absorb(EClassBase *other) {
   absorbMap(opcodeToNodesMap, other->opcodeToNodesMap);
   absorbMap(uses, other->uses);
   users.insert(other->users.begin(), other->users.end());
+  other->users.clear();
   other->leader = this;
   if (rank == other->rank)
     rank++;
